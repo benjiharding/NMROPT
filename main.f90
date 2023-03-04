@@ -45,7 +45,14 @@ program main
       end do
    end do
 
+   ! write out the optimized network weights
+   do i = 1, size(best)
+      write (lwts, "(*(g14.8,1x))") best(i)
+   end do
+
    close (lout)
    close (ldbg)
+   close (lwts)
+   close (lobj)
 
 end program main
