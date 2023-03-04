@@ -15,8 +15,9 @@ module objective_mod
    integer, allocatable :: AL_i(:, :) ! indicator transform of AL (nd, ncut)
 
    ! objective function targets
-   real(8), allocatable :: target_vario(:) ! (ndir*nlags)
-   real(8), allocatable :: target_ivario(:, :) ! (ncut, ndir*nlags)
+   type(vario_array) :: target_vario ! (ndir*nlags)
+   type(ivario_array) :: target_ivario ! (ncut, ndir*nlags)
+
    integer, allocatable :: target_runs(:, :) ! (ncut, maxrun)
    integer, allocatable :: target_npoint(:, :) ! (ncut, nstep)
 
@@ -36,7 +37,8 @@ module objective_mod
    integer, allocatable :: pairs(:, :) ! (npairs*ndir, 3)
    integer, allocatable :: head(:), tail(:), lag(:), dir(:)
    type(lag_array) :: heads, tails
-   real(8), allocatable :: varlagdist(:) ! (ndir*nlag)
+   type(vario_array) :: varlagdist
+
    real(8), allocatable :: thresholds(:) ! for indicator transform
    real(8), allocatable :: ivars(:) ! indicator sills (ncut)
    integer, allocatable :: nlags(:) ! multiple directions
@@ -70,19 +72,23 @@ module objective_mod
    integer :: runs_above
    integer :: conn_above
 
+   ! output file
+   integer :: lprs = 6
+
 contains
 
    subroutine init_objective()
 
       ! initialize objective targets, values and scaling components
 
-      integer :: numpairs(ndir), numpairs_lag(maxval(nlags), ndir)
+      integer :: numpairs(ndir)
       integer, allocatable :: tmppairs(:, :), tmpruns(:), tmparr(:)
-      integer, allocatable :: headt(:), tailt(:), lag_idxs(:)
+      integer, allocatable :: headt(:), tailt(:), lagt(:), lag_idxs(:)
       real(8), allocatable :: tmpbins(:)
-      real(8), allocatable :: varazm(:), vardip(:)
-      integer :: maxpairs, maxlags, test
-      integer :: i, j, k
+      type(vario_array) :: varazm, vardip
+
+      integer :: maxlags
+      integer :: i, j, k, nl
 
       ! data coordinates
       x = xyz(1, :)
@@ -101,119 +107,88 @@ contains
       allocate (udhidx(ndh + 1))
       udhidx = cumsum(dhlens)
 
-      ! get the max number of variogram pairs
-      do i = 1, ndir
-         call vario_pairs(x, y, z, azm(i), atol(i), bandh(i), dip(i), &
-                          dtol(i), bandv(i), nlags(i), lagdis(i), lagtol(i), &
-                          ndata, tmppairs, tmpbins)
-         numpairs(i) = size(tmppairs, dim=1)
-      end do
-
-      ! allocate the pairs array
-      maxpairs = sum(numpairs)
-      allocate (pairs(maxpairs, 4), stat=test)
-      if (test .ne. 0) stop "allocation failed due to insufficient memory!"
-
-      ! get the start/end indices for each dir
-      ! this is to prevent having to call vario_pairs subroutine repeatedly
-      allocate (udiridx(ndir + 1))
-      udiridx = cumsum(numpairs)
-
-      ! allocate the lags array
-      maxlags = sum(nlags)
-      allocate (varlagdist(maxlags), varazm(maxlags), vardip(maxlags))
-
-      ! get the start/end indices for each dir
-      ! this is to prevent having to call vario_pairs subroutine repeatedly
-      allocate (ulagidx(ndir + 1))
-      ulagidx = cumsum(nlags)
-
-      ! get expvario pairs and lag bins by direction
-      do i = 1, ndir
-         call vario_pairs(x, y, z, azm(i), atol(i), bandh(i), dip(i), &
-                          dtol(i), bandv(i), nlags(i), lagdis(i), lagtol(i), &
-                          ndata, tmppairs, tmpbins)
-         call get_idx(i)
-         pairs(e:f, 1:3) = tmppairs
-         pairs(e:f, 4) = i
-         varlagdist(g:h) = tmpbins
-         varazm(g:h) = azm(i)
-         vardip(g:h) = dip(i)
-      end do
-
-      ! arrays for variogram subroutines
-      head = pairs(:, 1)
-      tail = pairs(:, 2)
-      lag = pairs(:, 3)
-      dir = pairs(:, 4)
-
-      ! get the number of pairs by lag for each direction
-      numpairs_lag = 0
-      do i = 1, ndir
-         do j = 1, size(lag)
-            k = lag(j)
-            if (dir(j) .eq. i) numpairs_lag(k, i) = numpairs_lag(k, i) + 1
-         end do
-      end do
-
-      ! allocate ragged arrays and reformat lag data
+      ! get variogram lag and pair data
       allocate (heads%dirs(ndir), tails%dirs(ndir))
+      allocate (varazm%dirs(ndir), vardip%dirs(ndir), varlagdist%dirs(ndir))
 
       do i = 1, ndir
-         call get_idx(i)
-         headt = head(e:f)
-         tailt = tail(e:f)
-         allocate (heads%dirs(i)%lags(nlags(i)), &
-                   tails%dirs(i)%lags(nlags(i)))
+         call vario_pairs(x, y, z, azm(i), atol(i), bandh(i), dip(i), &
+                          dtol(i), bandv(i), nlags(i), lagdis(i), lagtol(i), &
+                          ndata, tmppairs, tmpbins)
+         headt = tmppairs(:, 1)
+         tailt = tmppairs(:, 2)
+         lagt = tmppairs(:, 3)
+         numpairs(i) = size(lagt)
+         nl = maxval(lagt) - minval(lagt) + 1
 
-         do j = 1, nlags(i)
-            allocate (heads%dirs(i)%lags(j)%idxs(numpairs_lag(j, i)), &
-                      tails%dirs(i)%lags(j)%idxs(numpairs_lag(j, i)))
-            lag_idxs = pack([(k, k=1, size(lag(e:f)))], lag(e:f) .eq. j)
+         ! only allocate the number of defined lags
+         allocate (varazm%dirs(i)%vlags(nl))
+         allocate (vardip%dirs(i)%vlags(nl))
+         allocate (varlagdist%dirs(i)%vlags(nl))
+         allocate (heads%dirs(i)%lags(nl))
+         allocate (tails%dirs(i)%lags(nl))
 
+         do j = 1, nl
+
+            ! experiemntal parameters
+            varazm%dirs(i)%vlags(j) = azm(i)
+            vardip%dirs(i)%vlags(j) = dip(i)
+            varlagdist%dirs(i)%vlags(j) = tmpbins(j)
+
+            ! lag indices
+            lag_idxs = pack([(k, k=1, size(tmppairs, dim=1))], &
+                            tmppairs(:, 3) .eq. j)
+            allocate (heads%dirs(i)%lags(j)%idxs(size(lag_idxs)))
+            allocate (tails%dirs(i)%lags(j)%idxs(size(lag_idxs)))
             do k = 1, size(lag_idxs)
                heads%dirs(i)%lags(j)%idxs(k) = headt(lag_idxs(k))
                tails%dirs(i)%lags(j)%idxs(k) = tailt(lag_idxs(k))
             end do
+
          end do
       end do
 
       ! establish stride to reduce total number of exp variogram pairs
       stride = 1
+
+      ! ! write out pairs if debugging
+      ! open (lprs, file="vario_pairs.out", status="UNKNOWN")
+      ! write (lprs, "(a28)") "Experimental Variogram Pairs"
+      ! write (lprs, "(i1)") 4
+      ! write (lprs, "(a8)") "Head IDX"
+      ! write (lprs, "(a8)") "Tail IDX"
+      ! write (lprs, "(a7)") "Lag IDX"
+      ! write (lprs, "(a7)") "Dir IDX"
       ! do i = 1, ndir
-      !    do j = 1, maxval(nlags)
-      !       k = numpairs_lag(j, i)
-      !       if (k .gt. 1000 .and. k .lt. 5000) stride(j, i) = 2
-      !       if (k .gt. 5000 .and. k .lt. 10000) stride(j, i) = 3
-      !       if (k .gt. 10000) stride(j, i) = 5
+      !    do j = 1, size(heads%dirs(i)%lags)
+      !       do k = 1, size(heads%dirs(i)%lags(j)%idxs)
+      !          write (lprs, "(*(i5))") heads%dirs(i)%lags(j)%idxs(k), &
+      !             tails%dirs(i)%lags(j)%idxs(k), j, i
+      !       end do
       !    end do
       ! end do
-
-      ! write out pairs if debugging
-      open (4, file="vario_pairs.out", status="UNKNOWN")
-      write (4, "(a28)") "Experimental Variogram Pairs"
-      write (4, "(i1)") 4
-      write (4, "(a8)") "Head IDX"
-      write (4, "(a8)") "Tail IDX"
-      write (4, "(a7)") "Lag IDX"
-      write (4, "(a7)") "Dir IDX"
-      do i = 1, size(pairs, dim=1)
-         write (4, "(*(i5))") head(i), tail(i), lag(i), dir(i)
-      end do
-      close (4)
+      ! close (lprs)
 
       ! variogram target
-      allocate (target_vario(maxlags))
+      allocate (target_vario%dirs(ndir))
       ahmin = anis1*aa
       avert = anis2*aa
-      call varmodelpts(nst(1), c0(1), it, cc, ang1, ang2, ang3, aa, ahmin, &
-                       avert, maxlags, varlagdist, varazm, vardip, target_vario)
+      do i = 1, ndir
+         maxlags = size(varlagdist%dirs(i)%vlags)
+         allocate (target_vario%dirs(i)%vlags(maxlags))
+         call varmodelpts(nst(1), c0(1), it, cc, ang1, ang2, ang3, aa, ahmin, &
+                          avert, maxlags, varlagdist%dirs(i)%vlags, &
+                          varazm%dirs(i)%vlags, vardip%dirs(i)%vlags, &
+                          target_vario%dirs(i)%vlags)
+      end do
 
       ! indicator variogram target
-      allocate (target_ivario(maxlags, ncut))
+      allocate (target_ivario%cuts(ncut))
       allocate (iahmin(ncut, MAXNST), iavert(ncut, MAXNST))
 
       do j = 1, ncut
+
+         allocate (target_ivario%cuts(j)%dirs(ndir))
 
          ! rescale sill parameters
          ic0(j) = ic0(j)*ivars(j)
@@ -224,10 +199,16 @@ contains
          ! calculate the model points
          iahmin(j, :) = ianis1(j, :)*iaa(j, :)
          iavert(j, :) = ianis2(j, :)*iaa(j, :)
-         call varmodelpts(inst(j), ic0(j), iit(j, :), icc(j, :), iang1(j, :), &
-                          iang2(j, :), iang3(j, :), iaa(j, :), iahmin(j, :), &
-                          iavert(j, :), maxlags, varlagdist, varazm, vardip, &
-                          target_ivario(:, j))
+
+         do k = 1, ndir
+            maxlags = size(varlagdist%dirs(k)%vlags)
+            allocate (target_ivario%cuts(j)%dirs(k)%vlags(maxlags))
+            call varmodelpts(inst(j), ic0(j), iit(j, :), icc(j, :), iang1(j, :), &
+                             iang2(j, :), iang3(j, :), iaa(j, :), iahmin(j, :), &
+                             iavert(j, :), maxlags, varlagdist%dirs(k)%vlags, &
+                             varazm%dirs(k)%vlags, vardip%dirs(k)%vlags, &
+                             target_ivario%cuts(j)%dirs(k)%vlags)
+         end do
       end do
 
       ! runs target
@@ -405,11 +386,9 @@ contains
       objt = 0.d0
 
       do i = 1, ndir
-         call get_idx(i)
-         ! call update_vario(head(e:f), tail(e:f), lag(e:f), AL, nlags(i), expvario)
          call update_vario(heads%dirs(i), tails%dirs(i), AL, stride(:, i), expvario)
-         call vario_mse(expvario, target_vario(g:h), varlagdist(g:h), &
-                        dble(idwpow), mse)
+         call vario_mse(expvario, target_vario%dirs(i)%vlags, &
+                        varlagdist%dirs(i)%vlags, dble(idwpow), mse)
          objt = objt + mse
       end do
 
@@ -431,12 +410,10 @@ contains
 
       do j = 1, ncut
          do i = 1, ndir
-            call get_idx(i)
-            ! call update_vario(head(e:f), tail(e:f), lag(e:f), dble(AL_i(:, j)), &
-            !                   nlags(i), expivario)
-            call update_vario(heads%dirs(i), tails%dirs(i), dble(AL_i(:, j)), stride(:, i), expivario)
-            call vario_mse(expivario, target_ivario(g:h, j), varlagdist(g:h), &
-                           dble(idwpow), mse)
+            call update_vario(heads%dirs(i), tails%dirs(i), dble(AL_i(:, j)), &
+                              stride(:, i), expivario)
+            call vario_mse(expivario, target_ivario%cuts(j)%dirs(i)%vlags, &
+                           varlagdist%dirs(i)%vlags, dble(idwpow), mse)
             objt = objt + mse
          end do
       end do
@@ -483,18 +460,5 @@ contains
       objt = 0.d0
 
    end subroutine obj_npoint
-
-   subroutine get_idx(i)
-
-      ! lag and direction vector indices
-
-      integer :: i
-
-      e = udiridx(i) + 1
-      f = udiridx(i + 1)
-      g = ulagidx(i) + 1
-      h = ulagidx(i + 1)
-
-   end subroutine get_idx
 
 end module objective_mod
