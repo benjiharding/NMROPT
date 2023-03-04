@@ -24,6 +24,8 @@ contains
       write (99, "(A)") '1 10                              - debugging level, realization to output'
       write (99, "(A)") 'nmropt.dbg                        - file for debugging output'
       write (99, "(A)") 'nmropt.out                        - file for network output'
+      write (99, "(A)") 'nmrwts.out                        - file for optimzed network weights'
+      write (99, "(A)") 'nmrobj.out                        - file for objective function value per iteration'
       write (99, "(A)") '5                                 - number of network layers (input to output layer)'
       write (99, "(A)") '16 5 5 5 1                        - network layer dimensions (input to output layer)'
       write (99, "(A)") '1                                 - network activation func. (1=sigmoid, 2=tanh, 3=relu, 4=linear)'
