@@ -13,6 +13,9 @@ module de_mod
    integer :: popsize, its
    real(8), allocatable :: best(:)
 
+   ! objective iterations output file
+   integer :: lobj = 5
+
 contains
 
    subroutine optimize()
@@ -173,6 +176,9 @@ contains
 
          ! store this iterations best value
          fobj(i) = fitness(best_idx)
+
+         ! write out the values
+         write (lobj, "(*(g14.8,1x))") i, fobj(i)
 
          ! are we done early?
          if (fobj(i) .le. 0.0000000000000001D0) exit
