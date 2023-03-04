@@ -11,9 +11,11 @@ module readpar_mod
 
    implicit none
 
-   integer :: lin, lout, ldbg, idbg, dbgireal
+   integer :: lin, lout, ldbg, idbg, dbgireal, lwts
    character(256) :: outfile
    character(256) :: dbgfile
+   character(256) :: wtsfile
+   character(256) :: objfile
 
 contains
 
@@ -38,6 +40,7 @@ contains
       lin = 1
       lout = 2
       ldbg = 3
+      lwts = 4
 
       ! attempt to open the parfile
       do i = 1, 256
@@ -150,6 +153,7 @@ contains
          open (ldbg, file=dbgfile, status="UNKNOWN")
       end if
 
+      ! network output
       read (lin, '(a256)', iostat=test) outfile
       if (test .ne. 0) stop "ERROR in parameter file"
       call chknam(outfile, 256)
@@ -160,6 +164,31 @@ contains
       write (lout, "(a15)") "Network Mixture"
       write (lout, "(i1)") 1
       write (lout, "(a9)") "nmr value"
+
+      ! network weights
+      read (lin, '(a256)', iostat=test) wtsfile
+      if (test .ne. 0) stop "ERROR in parameter file"
+      call chknam(wtsfile, 256)
+      write (*, "(2a)") '  output file: ', trim(adjustl(wtsfile))
+
+      ! open the weight file and write headers
+      open (lwts, file=wtsfile, status="UNKNOWN")
+      write (lwts, "(a15)") "Network Weights"
+      write (lwts, "(i1)") 1
+      write (lwts, "(a6)") "weight"
+
+      ! obj function vs iterations
+      read (lin, '(a256)', iostat=test) objfile
+      if (test .ne. 0) stop "ERROR in parameter file"
+      call chknam(objfile, 256)
+      write (*, "(2a)") '  output file: ', trim(adjustl(objfile))
+
+      ! open the objective file and write headers
+      open (lobj, file=objfile, status="UNKNOWN")
+      write (lobj, "(a22)") "NMR Objective Function"
+      write (lobj, "(i1)") 2
+      write (lobj, "(a9)") "iteration"
+      write (lobj, "(a15)") "objective value"
 
       ! network architecture
       read (lin, *, iostat=test) nnl
