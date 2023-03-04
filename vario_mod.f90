@@ -16,6 +16,17 @@ module vario_mod
       type(lags), allocatable :: dirs(:)
    end type lag_array
 
+   ! ragged arrays for variogram data
+   type :: vlags
+      real(8), allocatable :: vlags(:)
+   end type vlags
+   type :: vario_array
+      type(vlags), allocatable :: dirs(:)
+   end type vario_array
+   type :: ivario_array
+      type(vario_array), allocatable :: cuts(:)
+   end type ivario_array
+
 contains
 
    subroutine indicator_transform(zval, zc, nd, ncut, iz, ivars)
@@ -58,41 +69,6 @@ contains
 
    end subroutine indicator_transform
 
-   ! subroutine update_vario(head, tail, lag, zval, nlags, expvario)
-
-   !    ! recalculate experimental variogram using updated zval
-
-   !    ! parameters
-   !    integer, intent(in) :: head(:), tail(:), lag(:)
-   !    real(8), intent(in) :: zval(:)
-   !    integer, intent(in) :: nlags
-
-   !    ! result
-   !    real(8), allocatable, intent(out) :: expvario(:)
-
-   !    ! local variables
-   !    real(8) :: expv
-   !    integer :: i, j, ap, np
-
-   !    allocate (expvario(nlags))
-   !    ap = size(head, dim=1)
-
-   !    do i = 1, nlags
-   !       expv = 0.d0
-   !       np = 0
-   !       do j = 1, ap ! dont need to iterate over all pairs on each lag...
-   !          if (lag(j) .eq. i) then
-   !             expv = expv + (zval(tail(j)) - zval(head(j)))**2
-   !             np = np + 1
-   !          else
-   !             cycle
-   !          end if
-   !       end do
-   !       expvario(i) = 1.d0/(2.d0*dble(np))*expv
-   !    end do
-
-   ! end subroutine update_vario
-
    subroutine update_vario(head, tail, zval, stride, expvario)
 
       ! recalculate experimental variogram using updated zval
@@ -115,7 +91,6 @@ contains
       do i = 1, nl
          expv = 0.d0
          np = size(head%lags(i)%idxs)
-         if (np .eq. 0) cycle
          expv = sum((zval(head%lags(i)%idxs) - zval(tail%lags(i)%idxs))**2)
          expvario(i) = 1.d0/(2.d0*dble(np))*expv
       end do
