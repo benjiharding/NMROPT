@@ -178,7 +178,7 @@ contains
          fobj(i) = fitness(best_idx)
 
          ! write out the values
-         write (lobj, "(*(g14.8,1x))") i, fobj(i)
+         write (lobj, "(1(i0,1x),1(g14.8,1x))") i, fobj(i)
 
          ! are we done early?
          if (fobj(i) .le. 0.0000000000000001D0) exit
