@@ -11,6 +11,9 @@ module network_mod
    real(8), allocatable :: vect(:) ! candidate vector
    integer :: af ! activation function
 
+   ! data parameters
+   real(8), allocatable :: var(:), wts(:) ! variable and weights
+
    ! interface for procedural pointer
    abstract interface
       function afunc(y) result(a)
@@ -69,7 +72,7 @@ contains
 
       ! iterate over layers(2:)
       ! get number of connection in each layer n^l * n^l-1
-      ! get cumulative sum of connecitons to get 1D is, ie for each matrix
+      ! get cumulative sum of connecitons to get 1D ids, ie for each matrix
       ! do the same for the bias terms
       ! on each iteration reshape the array slice to (n^l * n^l-1)
       ! do matrix math and apply activations
@@ -86,7 +89,7 @@ contains
       real(8), allocatable :: Amat(:, :), A_prev(:, :)
       real(8), allocatable :: W(:, :), WL(:, :), b(:, :), bL(:, :), &
                               Zmat(:, :), ZL(:, :)
-      real(8), allocatable :: vrg(:), wts(:)
+      real(8), allocatable :: vrg(:)
       integer :: sw(2), sb(2)
       integer :: i, ld
 
@@ -125,8 +128,6 @@ contains
          Zmat = matmul(A_prev, W) + b
          Amat = f_ptr(Zmat)
 
-         !  print *, "Amat", shape(Amat)
-         !  call print_matrix(Amat)
       end do
 
       ! output layer
@@ -146,32 +147,30 @@ contains
       AL = ZL(:, 1)
 
       ! normal score transform
-      allocate (wts(size(AL)))
-      wts = 1.d0
       call nscore(AL, wts, vrg)
       AL = vrg
 
    end subroutine network_forward
 
-   subroutine nscore(var, wts, vrg)
+   subroutine nscore(dvar, dwts, vrg)
 
       ! parameters
-      real(8), intent(in) :: var(:), wts(:)
+      real(8), intent(in) :: dvar(:), dwts(:)
       ! integer :: rseed = 5841044
 
       ! result
       real(8), allocatable, intent(out) :: vrg(:)
 
       ! internal variables
-      real(8), allocatable :: vr(:)  ! temp copy of 'var'
+      real(8), allocatable :: vr(:)  ! temp copy of 'dvar'
       real(8), allocatable :: wt_ns(:)
       real(8) :: vrrg, vrr
       real(8) :: u, twt, wtfac, oldcp, cp, w
       real(8), dimension(1) :: c, d, e, f, g, h, aa
       integer :: i, j, nd, ierr
 
-      nd = size(var, dim=1)
-      wt_ns = wts
+      nd = size(dvar, dim=1)
+      wt_ns = dwts
 
       ! allocate output array
       allocate (vr(nd), vrg(nd))
@@ -179,7 +178,7 @@ contains
       ! add small random value for sorting
       do i = 1, nd
          u = grnd()
-         vr(i) = var(i) + u*EPSLON
+         vr(i) = dvar(i) + u*EPSLON
          twt = twt + wt_ns(i)
       end do
 
@@ -203,7 +202,7 @@ contains
       ! normal scores transform
       do i = 1, nd
          u = grnd()
-         vrr = var(i) + u*EPSLON
+         vrr = dvar(i) + u*EPSLON
          call locate(vr, nd, 1, nd, vrr, j)
          j = min(max(1, j), (nd - 1))
          vrg(i) = powint(vr(j), vr(j + 1), wt_ns(j), wt_ns(j + 1), vrr, 1.d0)
