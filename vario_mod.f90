@@ -110,7 +110,7 @@ contains
       real(8), intent(out) :: mse
 
       ! local variables
-      real(8), allocatable :: wts(:)
+      real(8), allocatable :: idw_wts(:)
       integer :: nlags
 
       ! initilaize a few variables
@@ -118,11 +118,11 @@ contains
       mse = 0.d0
 
       ! get weights by lag distance
-      wts = inv_dist(varlagdist, idwpow, nlags)
+      idw_wts = inv_dist(varlagdist, idwpow, nlags)
 
       ! get the weighted MSE
-      mse = sum(wts*(varmodelvals - expvario)**2)
-      mse = 1.d0/dble(nlags)*mse/sum(wts)
+      mse = sum(idw_wts*(varmodelvals - expvario)**2)
+      mse = 1.d0/dble(nlags)*mse/sum(idw_wts)
 
    end subroutine vario_mse
 
@@ -345,18 +345,18 @@ contains
 
    end subroutine vario_pairs
 
-   function inv_dist(lagdis, power, nlags) result(wts)
+   function inv_dist(lagdis, power, nlags) result(idw_wts)
 
       ! inverse distance power weighting
 
       real(8), intent(in) :: lagdis(nlags)
       real(8), intent(in) :: power
       integer, intent(in) :: nlags
-      real(8) :: wts(nlags)
+      real(8) :: idw_wts(nlags)
 
-      wts = 1.d0/lagdis**power
-      ! wts = wts/maxval(wts)
-      wts = wts/sum(wts)
+      idw_wts = 1.d0/lagdis**power
+      ! idw_wts = idw_wts/maxval(idw_wts)
+      idw_wts = idw_wts/sum(idw_wts)
 
    end function inv_dist
 
