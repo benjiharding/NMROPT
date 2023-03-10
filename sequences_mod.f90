@@ -10,7 +10,7 @@ contains
 
    ! TODO: n-point connectivity
 
-   subroutine calculate_runs(arr, maxrun, cumbins)
+   subroutine binary_runs(arr, maxrun, cumbins)
 
       ! Calculate runs in 1D binary sequence
 
@@ -118,6 +118,78 @@ contains
          cumbins(j) = cumbins(j) + 1
       end do
 
-   end subroutine calculate_runs
+   end subroutine binary_runs
+
+   subroutine npoint_connect(AL_i, nstep, ndh, udhidx, phi)
+
+      ! global n-point connectivity function
+
+      ! parameters
+      integer, intent(in) :: AL_i(:), udhidx(:)
+      integer, intent(in) :: nstep, ndh
+
+      ! result
+      real(8), allocatable, intent(out) :: phi(:)
+
+      ! local variables
+      integer, allocatable :: temp_idxs(:), idxs(:)
+      integer, allocatable :: iarr(:), arr(:), lcount(:)
+      real(8), allocatable :: prod(:)
+      integer :: i, j, k, n, nx
+      real(8) :: p
+
+      allocate (phi(nstep), prod(nstep), lcount(nstep))
+      prod = 0.d0
+      lcount = 0
+
+      ! loop over connected steps
+      do n = 1, nstep
+
+         allocate (temp_idxs(n + 1))
+
+         temp_idxs(1) = 1
+         do i = 1, n
+            temp_idxs(i + 1) = i
+         end do
+
+         ! number of drillholes
+         do k = 1, ndh
+
+            iarr = AL_i(udhidx(k) + 1:udhidx(k + 1))
+            nx = size(iarr)
+
+            ! are we considering connectivity above the thresholds?
+            if (inpoint .gt. 0) then
+               iarr = 1 - iarr
+            end if
+
+            ! number of actual lags in vector given n and nx
+            do i = 1, nx - n + 1
+
+               idxs = temp_idxs + (i - 1)
+               arr = iarr(idxs)
+
+               ! product of indicators
+               p = 1.d0
+               do j = 1, size(arr)
+                  p = p*arr(j)
+               end do
+
+               ! update products
+               prod(n) = prod(n) + p
+
+               ! increment lag counter
+               lcount(n) = lcount(n) + 1
+
+            end do
+         end do
+
+         deallocate (temp_idxs)
+
+      end do
+
+      phi = prod/dble(lcount)
+
+   end subroutine npoint_connect
 
 end module sequences_mod
