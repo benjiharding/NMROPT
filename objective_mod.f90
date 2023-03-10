@@ -19,7 +19,7 @@ module objective_mod
    type(ivario_array) :: target_ivario ! (ncut, ndir*nlags)
 
    integer, allocatable :: target_runs(:, :) ! (ncut, maxrun)
-   integer, allocatable :: target_npoint(:, :) ! (ncut, nstep)
+   real(8), allocatable :: target_npoint(:, :) ! (ncut, nstep)
 
    ! objective function scaling
    real(8) :: objscale(4) ! fobj scaling parameters
@@ -73,7 +73,7 @@ module objective_mod
    integer :: conn_above
 
    ! output file
-   integer :: lprs = 6
+   integer :: idbg, lprs = 7 ! cant be 6
 
 contains
 
@@ -84,7 +84,7 @@ contains
       integer :: numpairs(ndir)
       integer, allocatable :: tmppairs(:, :), tmpruns(:), tmparr(:)
       integer, allocatable :: headt(:), tailt(:), lagt(:), lag_idxs(:)
-      real(8), allocatable :: tmpbins(:)
+      real(8), allocatable :: tmpbins(:), tmpnpt(:)
       type(vario_array) :: varazm, vardip
 
       integer :: maxlags
@@ -151,23 +151,25 @@ contains
       ! establish stride to reduce total number of exp variogram pairs
       stride = 1
 
-      ! ! write out pairs if debugging
-      ! open (lprs, file="vario_pairs.out", status="UNKNOWN")
-      ! write (lprs, "(a28)") "Experimental Variogram Pairs"
-      ! write (lprs, "(i1)") 4
-      ! write (lprs, "(a8)") "Head IDX"
-      ! write (lprs, "(a8)") "Tail IDX"
-      ! write (lprs, "(a7)") "Lag IDX"
-      ! write (lprs, "(a7)") "Dir IDX"
-      ! do i = 1, ndir
-      !    do j = 1, size(heads%dirs(i)%lags)
-      !       do k = 1, size(heads%dirs(i)%lags(j)%idxs)
-      !          write (lprs, "(*(i5))") heads%dirs(i)%lags(j)%idxs(k), &
-      !             tails%dirs(i)%lags(j)%idxs(k), j, i
-      !       end do
-      !    end do
-      ! end do
-      ! close (lprs)
+      ! write out pairs if debugging
+      if (idbg .gt. 0) then
+         open (lprs, file="vario_pairs.out", status="UNKNOWN")
+         write (lprs, "(a28)") "Experimental Variogram Pairs"
+         write (lprs, "(i1)") 4
+         write (lprs, "(a8)") "head idx"
+         write (lprs, "(a8)") "tail idx"
+         write (lprs, "(a7)") "lag idx"
+         write (lprs, "(a7)") "dir idx"
+         do i = 1, ndir
+            do j = 1, size(heads%dirs(i)%lags)
+               do k = 1, size(heads%dirs(i)%lags(j)%idxs)
+                  write (lprs, "(*(i5))") heads%dirs(i)%lags(j)%idxs(k), &
+                     tails%dirs(i)%lags(j)%idxs(k), j, i
+               end do
+            end do
+         end do
+         close (lprs)
+      end if
 
       ! variogram target
       allocate (target_vario%dirs(ndir))
@@ -211,15 +213,22 @@ contains
          end do
       end do
 
-      ! runs target
       allocate (target_runs(maxrun, ncut))
       target_runs(:, :) = 0
       do i = 1, ncut
-         do j = 2, ndh
-            tmparr = iz(udhidx(j - 1) + 1:udhidx(j), i)
-            call calculate_runs(tmparr, maxrun, tmpruns)
+         do j = 1, ndh
+            tmparr = iz(udhidx(j) + 1:udhidx(j + 1), i)
+            call binary_runs(tmparr, maxrun, tmpruns)
             target_runs(:, i) = target_runs(:, i) + tmpruns
          end do
+      end do
+
+      ! npoint connectivity target
+      allocate (target_npoint(nstep, ncut))
+      target_npoint(:, :) = 0.d0
+      do i = 1, ncut
+         call npoint_connect(iz(:, i), nstep, ndh, udhidx, tmpnpt)
+         target_npoint(:, i) = tmpnpt
       end do
 
       ! scale the components
@@ -437,9 +446,9 @@ contains
 
       do i = 1, ncut
          cumruns = 0
-         do j = 2, ndh
-            iarr = AL_i(udhidx(j - 1) + 1:udhidx(j), i)
-            call calculate_runs(iarr, maxrun, expruns)
+         do j = 1, ndh
+            iarr = AL_i(udhidx(j) + 1:udhidx(j + 1), i)
+            call binary_runs(iarr, maxrun, expruns)
             cumruns = cumruns + expruns
          end do
          mse = sum((dble(target_runs(:, i)) - dble(cumruns))**2)/dble(maxrun)
@@ -457,7 +466,20 @@ contains
 
       real(8), intent(inout) :: objt
 
+      real(8), allocatable :: phi_n(:)
+      real(8) :: mse
+      integer :: i
+
       objt = 0.d0
+
+      do i = 1, ncut
+         call npoint_connect(AL_i(:, i), nstep, ndh, udhidx, phi_n)
+         mse = sum((target_npoint(:, i) - phi_n)**2)/dble(nstep)
+         objt = objt + mse
+      end do
+
+      objt = objt/ncut
+      objt = objt*objscale(4)
 
    end subroutine obj_npoint
 
