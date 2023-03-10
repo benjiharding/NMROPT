@@ -11,7 +11,7 @@ module readpar_mod
 
    implicit none
 
-   integer :: lin, lout, ldbg, idbg, dbgireal, lwts
+   integer :: lin, lout, ldbg, dbgireal, lwts
    character(256) :: outfile
    character(256) :: dbgfile
    character(256) :: wtsfile
@@ -103,10 +103,10 @@ contains
          stop
       end if
 
-      ! nscore flag
-      read (lin, *, iostat=test) itrans
-      if (test .ne. 0) stop "ERROR in parameter file"
-      write (*, *) ' normal score transform flag: ', itrans
+      ! ! nscore flag
+      ! read (lin, *, iostat=test) itrans
+      ! if (test .ne. 0) stop "ERROR in parameter file"
+      ! write (*, *) ' normal score transform flag: ', itrans
 
       ! trimming limits
       read (lin, *, iostat=test) tmin, tmax
@@ -431,6 +431,11 @@ contains
          var(ndata) = tmpvar(varcol)
          wts(ndata) = tmpvar(wtcol)
       end do
+
+      ! assume equal weighting if not specified
+      if (wtcol .eq. 0) then
+         wts = 1.d0
+      end if
 
       ! get unique drillhole ids - this array is sorted
       udhids = unique(dhids)
