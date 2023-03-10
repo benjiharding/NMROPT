@@ -8,7 +8,6 @@ module lusim_mod
    implicit none
 
    ! data parameters
-   real(8), allocatable :: var(:), wts(:) ! variable and weights
    real(8), allocatable :: xyz(:, :) ! data coordinates
    integer :: ndata
 
@@ -30,6 +29,7 @@ contains
       real(8) :: c0(ndata)
       integer :: i, ireal, igv, test, ierr
       real(8) :: p, xp
+      real(8) :: start, finish
 
       ! allocte array for realizations
       allocate (ysimd(ndata, ngvarg + 1, nreals), stat=test)
@@ -38,8 +38,11 @@ contains
       write (*, *) " "
       write (*, *) "Simulating unconditional factors..."
 
+      call cpu_time(start)
+
       ! simulate factors
       do igv = 1, ngvarg
+         write (*, *) "working on factor", igv
          call lusim(igv)
       end do
 
@@ -60,6 +63,11 @@ contains
          ysimd(:, ngvarg + 1, ireal) = c0
 
       end do
+
+      call cpu_time(finish)
+
+      write (*, *) " "
+      print '("simulation took ", f5.2, " minutes")', (finish - start)/60
 
    end subroutine simulate
 
