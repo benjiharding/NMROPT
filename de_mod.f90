@@ -1,20 +1,12 @@
 module de_mod
 
-   use objective_mod
-   use network_mod
+   use geostat
+   use objective_mod, only: obj_nmr
    use mtmod
    use subs
    use constants
 
    implicit none
-
-   ! DE parameters
-   real(8) :: mut, cplo, cphi, crossp
-   integer :: popsize, its
-   real(8), allocatable :: best(:)
-
-   ! objective iterations output file
-   integer :: lobj = 5
 
 contains
 

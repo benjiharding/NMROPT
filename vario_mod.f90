@@ -1,31 +1,11 @@
 module vario_mod
 
+   ! use geostat
+   use rotationmatrix, only: set_rmat
    use covasubs
    use constants
 
    implicit none
-
-   ! ragged arrays for lag data
-   type :: indices
-      integer, allocatable :: idxs(:)
-   end type indices
-   type :: lags
-      type(indices), allocatable :: lags(:)
-   end type lags
-   type :: lag_array
-      type(lags), allocatable :: dirs(:)
-   end type lag_array
-
-   ! ragged arrays for variogram data
-   type :: vlags
-      real(8), allocatable :: vlags(:)
-   end type vlags
-   type :: vario_array
-      type(vlags), allocatable :: dirs(:)
-   end type vario_array
-   type :: ivario_array
-      type(vario_array), allocatable :: cuts(:)
-   end type ivario_array
 
 contains
 
@@ -69,14 +49,13 @@ contains
 
    end subroutine indicator_transform
 
-   subroutine update_vario(head, tail, zval, stride, expvario)
+   subroutine update_vario(head, tail, zval, expvario)
 
       ! recalculate experimental variogram using updated zval
 
       ! parameters
       type(lags), intent(in) :: head, tail
       real(8), intent(in) :: zval(:)
-      integer, intent(in) :: stride(:)
 
       ! result
       real(8), allocatable, intent(out) :: expvario(:)
@@ -359,5 +338,50 @@ contains
       idw_wts = idw_wts/sum(idw_wts)
 
    end function inv_dist
+
+   subroutine set_sill(vm)
+
+      implicit none
+
+      type(variogram), intent(inout) :: vm(:)
+      integer :: n, i, j
+
+      n = ubound(vm(:), 1)
+
+      do i = 1, n
+         vm(i)%sill = vm(i)%c0
+         do j = 1, vm(i)%nst
+            if (vm(i)%it(j) .eq. 4) then
+               vm(i)%sill = vm(i)%sill + 999.D+00
+            else
+               vm(i)%sill = vm(i)%sill + vm(i)%cc(j)
+            end if
+         end do
+      end do
+
+   end subroutine set_sill
+
+   subroutine set_rotmatrix(vm)
+
+      implicit none
+
+      type(variogram), intent(inout) :: vm(:)
+
+      integer :: n, i, j, test
+
+      n = ubound(vm(:), 1)
+
+      do i = 1, n
+         if (.not. (allocated(vm(i)%rm))) then
+            allocate (vm(i)%rm(3, 3, vm(i)%nst), stat=test)
+            if (test .ne. 0) stop 'ERROR: Allocation failed due to insufficient memory.'
+         end if
+         do j = 1, vm(i)%nst
+            vm(i)%rm(:, :, j) = set_rmat([vm(i)%ang1(j), vm(i)%ang2(j), vm(i)%ang3(j)], &
+                                         [1.0D+00, vm(i)%anis1(j), vm(i)%anis2(j)])
+         end do
+      end do
+
+   end subroutine set_rotmatrix
 
 end module vario_mod

@@ -1,18 +1,11 @@
 module network_mod
 
+   use geostat, only: layer_dims, iwts, ibias, vect, af, wts
    use mtmod
    use subs
    use constants
 
    implicit none
-
-   ! network architecture
-   integer, allocatable :: layer_dims(:), iwts(:), ibias(:)
-   real(8), allocatable :: vect(:) ! candidate vector
-   integer :: af ! activation function
-
-   ! data parameters
-   real(8), allocatable :: var(:), wts(:) ! variable and weights
 
    ! interface for procedural pointer
    abstract interface

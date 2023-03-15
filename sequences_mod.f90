@@ -1,10 +1,9 @@
 module sequences_mod
 
+   use geostat, only: iruns, inpoint
    use constants
 
    implicit none
-
-   integer :: iruns, inpoint
 
 contains
 

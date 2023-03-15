@@ -1,26 +1,12 @@
 module lusim_mod
 
+   use geostat
    use mtmod
    use covasubs
    use constants
    use subs
 
    implicit none
-
-   ! data parameters
-   real(8), allocatable :: xyz(:, :) ! data coordinates
-   integer :: ndata
-
-   ! Guassian pool covariance structure
-   integer :: ngvarg ! number of Gaussian variograms
-   real(8), allocatable :: gc0(:), gcc(:, :), gang1(:, :), gang2(:, :), &
-                           gang3(:, :), gaa(:, :), ganis1(:, :), ganis2(:, :)
-   integer, allocatable :: gnst(:), git(:, :)
-
-   ! output realizations at data locations
-   integer :: rseed ! random seed
-   integer :: nreals ! number of realizations
-   real(8), allocatable :: ysimd(:, :, :) !(ndata, ngvarg + 1, nreals)
 
 contains
 
@@ -73,48 +59,23 @@ contains
 
    subroutine lusim(igv)
 
-      ! unconditional LU simulation using variogram index igv
+      ! unconditional LU simulation using Gaussian variogram index igv
 
-      integer :: MAXROT
-      integer :: i, j, igv, is, ierr, ireal!, n
-      real(8) :: x(ndata), y(ndata), z(ndata)
-      real(8), allocatable :: rotmat(:, :, :)
-      real(8) :: cmax, cova, sill
+      integer :: i, j, igv, ierr, ireal
+      real(8) :: cova
       real(8) :: C11(ndata, ndata), L11(ndata, ndata)
       real(8) :: w2(ndata, 1), y2(ndata, 1)
       real(8) :: p, xp
-
-      ! data coordinates
-      x = xyz(1, :)
-      y = xyz(2, :)
-      z = xyz(3, :)
 
       ! initialize matrices
       C11 = 0.0
       L11 = 0.0
 
-      ! set up rotation matrix for given variogram
-      MAXROT = gnst(igv)
-      allocate (rotmat(MAXROT, 3, 3))
-      do is = 1, gnst(igv)
-         call setrot(gang1(igv, is), gang2(igv, is), gang3(igv, is), &
-                     ganis1(igv, is), ganis2(igv, is), is, MAXROT, rotmat)
-      end do
-
-      ! check collocated points?
-
-      ! get cmax and the sill
-      call cova3(x(1), y(1), z(1), x(1), y(1), z(1), 1, gnst(igv), MAXGNST, &
-                 gc0(igv), git(igv, :), gcc(igv, :), gaa(igv, :), 1, MAXROT, &
-                 rotmat, cmax, sill)
-
       ! compute C11
       do i = 1, ndata
-         C11(i, i) = sill
+         C11(i, i) = pool(igv)%sill
          do j = i + 1, ndata
-            call cova3(x(i), y(i), z(i), x(j), y(j), z(j), 1, gnst(igv), MAXGNST, &
-                       gc0(igv), git(igv, :), gcc(igv, :), gaa(igv, :), 1, MAXROT, &
-                       rotmat, cmax, cova)
+            cova = get_cov(pool(igv), xyz(:, i), xyz(:, j))
             C11(i, j) = cova
             C11(j, i) = cova
          end do
