@@ -1,11 +1,8 @@
 module readpar_mod
 
+   use geostat
    use makepar_mod
-   use network_mod
-   use lusim_mod
-   use objective_mod
-   use sequences_mod
-   use de_mod
+   use vario_mod, only: set_sill, set_rotmatrix
    use subs
    use constants
 
@@ -266,21 +263,19 @@ contains
       if (test .ne. 0) stop "ERROR in parameter file"
       write (*, *) 'number of experimental directions: ', ndir
 
-      allocate (azm(ndir), atol(ndir), bandh(ndir), dip(ndir), dtol(ndir), &
-                bandv(ndir), nlags(ndir), lagdis(ndir), lagtol(ndir), &
-                tilt(ndir), stat=test)
+      allocate (expvar(ndir), stat=test)
       if (test .ne. 0) stop "allocation failed due to insufficient memory!"
 
       do i = 1, ndir
-         read (lin, *, iostat=test) azm(i), atol(i), bandh(i), dip(i), dtol(i), &
-            bandv(i), tilt(i)
+         read (lin, *, iostat=test) expvar(i)%azm, expvar(i)%atol, expvar(i)%bandh, &
+            expvar(i)%dip, expvar(i)%dtol, expvar(i)%bandv, expvar(i)%tilt
          if (test .ne. 0) stop "ERROR in parameter file"
-         write (*, *) '  azm, azmtol, bandhorz', azm(i), atol(i), bandh(i)
-         write (*, *) '  dip, diptol, bandvert', dip(i), dtol(i), bandv(i)
-         write (*, *) '  tilt', tilt(i)
-         read (lin, *, iostat=test) nlags(i), lagdis(i), lagtol(i)
+         write (*, *) '  azm, azmtol, bandhorz', expvar(i)%azm, expvar(i)%atol, expvar(i)%bandh
+         write (*, *) '  dip, diptol, bandvert', expvar(i)%dip, expvar(i)%dtol, expvar(i)%bandv
+         write (*, *) '  tilt', expvar(i)%tilt
+         read (lin, *, iostat=test) expvar(i)%nlags, expvar(i)%lagdis, expvar(i)%lagtol
          if (test .ne. 0) stop "ERROR in parameter file"
-         write (*, *) '  nlags, lagdist, lagtol', nlags(i), lagdis(i), lagtol(i)
+         write (*, *) '  nlags, lagdist, lagtol', expvar(i)%nlags, expvar(i)%lagdis, expvar(i)%lagtol
       end do
 
       ! number of variograms
@@ -288,9 +283,7 @@ contains
       if (test .ne. 0) stop "ERROR in parameter file"
       write (*, *) '  number of variogram models: ', nvarg
 
-      allocate (nst(MAXNST), it(MAXNST), c0(MAXNST), cc(MAXNST), ang1(MAXNST), &
-                ang2(MAXNST), ang3(MAXNST), aa(MAXNST), anis1(MAXNST), &
-                anis2(MAXNST), stat=test)
+      allocate (vmod(nvarg), stat=test)
       if (test .ne. 0) stop "allocation failed due to insufficient memory!"
 
       ! number of indicator variograms
@@ -299,10 +292,7 @@ contains
       write (*, *) '  number of indicator variogram models: ', nivarg
       ncut = nivarg
 
-      allocate (inst(ncut), iit(ncut, MAXNST), ic0(ncut), &
-                icc(ncut, MAXNST), iang1(ncut, MAXNST), iang2(ncut, MAXNST), &
-                iang3(ncut, MAXNST), iaa(ncut, MAXNST), ianis1(ncut, MAXNST), &
-                ianis2(ncut, MAXNST), stat=test)
+      allocate (ivmod(ncut), stat=test)
       if (test .ne. 0) stop "allocation failed due to insufficient memory!"
 
       ! thresholds
@@ -324,50 +314,71 @@ contains
 
       ! parse continous variogram model(s)
       do i = 1, nvarg
-         read (lin, *, iostat=test) nst(i), c0(i)
+         read (lin, *, iostat=test) vmod(i)%nst, vmod(i)%c0
          if (test .ne. 0) stop "ERROR in parameter file"
-         write (*, *) '  nst, c0: ', nst(i), c0(i)
-         if (nst(i) .gt. MAXNST) then
+         write (*, *) '  nst, c0: ', vmod(i)%nst, vmod(i)%c0
+         if (vmod(i)%nst .gt. MAXNST) then
             write (*, *) 'nst must be less than or equal to ', MAXNST
             stop
          end if
-         do j = 1, nst(i)
-            read (lin, *, iostat=test) it(j), cc(j), ang1(j), ang2(j), ang3(j)
+
+         allocate (vmod(i)%it(vmod(i)%nst), vmod(i)%cc(vmod(i)%nst), &
+                   vmod(i)%ang1(vmod(i)%nst), vmod(i)%ang2(vmod(i)%nst), vmod(i)%ang3(vmod(i)%nst), &
+                   vmod(i)%aa(vmod(i)%nst), vmod(i)%anis1(vmod(i)%nst), vmod(i)%anis2(vmod(i)%nst), &
+                   vmod(i)%ahmin(vmod(i)%nst), vmod(i)%avert(vmod(i)%nst), stat=test)
+         if (test .ne. 0) stop "allocation failed due to insufficient memory!"
+
+         do j = 1, vmod(i)%nst
+            read (lin, *, iostat=test) vmod(i)%it(j), vmod(i)%cc(j), vmod(i)%ang1(j), vmod(i)%ang2(j), vmod(i)%ang3(j)
             if (test .ne. 0) stop "ERROR in parameter file"
-            read (lin, *, iostat=test) aa(j), aa1, aa2
+            read (lin, *, iostat=test) vmod(i)%aa(j), vmod(i)%ahmin(j), vmod(i)%avert(j)
             if (test .ne. 0) stop "ERROR in parameter file"
-            anis1(j) = aa1/max(aa(j), EPSLON)
-            anis2(j) = aa2/max(aa(j), EPSLON)
-            write (*, *) ' it, cc, ang[1,2,3]; ', it(j), cc(j), ang1(j), &
-               ang2(j), ang3(j)
-            write (*, *) ' a1 a2 a3: ', aa(j), aa1, aa2
+            vmod(i)%anis1(j) = vmod(i)%ahmin(j)/max(vmod(i)%aa(j), EPSLON)
+            vmod(i)%anis2(j) = vmod(i)%avert(j)/max(vmod(i)%aa(j), EPSLON)
+            write (*, *) ' it, cc, ang[1,2,3]; ', vmod(i)%it(j), vmod(i)%cc(j), vmod(i)%ang1(j), &
+               vmod(i)%ang2(j), vmod(i)%ang3(j)
+            write (*, *) ' a1 a2 a3: ', vmod(i)%aa(j), vmod(i)%ahmin(j), vmod(i)%avert(j)
          end do
       end do
+
+      call set_sill(vmod)
+      call set_rotmatrix(vmod)
 
       ! parse indicator variogram models
       if (ivario .gt. 0) then
          do ic = 1, ncut
-            read (lin, *, iostat=test) inst(ic), ic0(ic)
+            read (lin, *, iostat=test) ivmod(ic)%nst, ivmod(ic)%c0
             if (test .ne. 0) stop "ERROR in parameter file"
-            write (*, *) '  inst, ic0: ', inst(ic), ic0(ic)
-            if (inst(ic) .gt. MAXNST) then
+            write (*, *) '  inst, ic0: ', ivmod(ic)%nst, ivmod(ic)%c0
+            if (ivmod(ic)%nst .gt. MAXNST) then
                write (*, *) 'inst must be less than or equal to ', MAXNST
                stop
             end if
-            do j = 1, inst(ic)
-               read (lin, *, iostat=test) iit(ic, j), icc(ic, j), iang1(ic, j), &
-                  iang2(ic, j), iang3(ic, j)
+
+            allocate (ivmod(ic)%it(ivmod(ic)%nst), ivmod(ic)%cc(ivmod(ic)%nst), &
+                      ivmod(ic)%ang1(ivmod(ic)%nst), ivmod(ic)%ang2(ivmod(ic)%nst), &
+                      ivmod(ic)%ang3(ivmod(ic)%nst), ivmod(ic)%aa(ivmod(ic)%nst), &
+                      ivmod(ic)%anis1(ivmod(ic)%nst), ivmod(ic)%anis2(ivmod(ic)%nst), &
+                      ivmod(ic)%ahmin(ivmod(ic)%nst), ivmod(ic)%avert(ivmod(ic)%nst), stat=test)
+            if (test .ne. 0) stop "allocation failed due to insufficient memory!"
+
+            do j = 1, ivmod(ic)%nst
+               read (lin, *, iostat=test) ivmod(ic)%it(j), ivmod(ic)%cc(j), ivmod(ic)%ang1(j), &
+                  ivmod(ic)%ang2(j), ivmod(ic)%ang3(j)
                if (test .ne. 0) stop "ERROR in parameter file"
-               read (lin, *, iostat=test) iaa(ic, j), aa1, aa2
+               read (lin, *, iostat=test) ivmod(ic)%aa(j), ivmod(ic)%ahmin(j), ivmod(ic)%avert(j)
                if (test .ne. 0) stop "ERROR in parameter file"
-               ianis1(ic, j) = aa1/max(iaa(ic, j), EPSLON)
-               ianis2(ic, j) = aa2/max(iaa(ic, j), EPSLON)
-               write (*, *) ' iit, icc, iang[1,2,3]; ', iit(ic, j), icc(ic, j), &
-                  iang1(ic, j), iang2(ic, j), iang3(ic, j)
-               write (*, *) ' a1 a2 a3: ', iaa(ic, j), aa1, aa2
+               ivmod(ic)%anis1(j) = ivmod(ic)%ahmin(j)/max(ivmod(ic)%aa(j), EPSLON)
+               ivmod(ic)%anis2(j) = ivmod(ic)%avert(j)/max(ivmod(ic)%aa(j), EPSLON)
+               write (*, *) ' iit, icc, iang[1,2,3]; ', ivmod(ic)%it(j), ivmod(ic)%cc(j), &
+                  ivmod(ic)%ang1(j), ivmod(ic)%ang2(j), ivmod(ic)%ang3(j)
+               write (*, *) ' a1 a2 a3: ', ivmod(ic)%aa(j), ivmod(ic)%ahmin(j), ivmod(ic)%avert(j)
             end do
          end do
       end if
+
+      call set_sill(ivmod)
+      call set_rotmatrix(ivmod)
 
       ! finished reading parameters
       close (lin)
@@ -459,11 +470,7 @@ contains
 
       ! allocate arrays for the pool
       ngvarg = layer_dims(1) - 1
-      allocate (gnst(ngvarg), git(ngvarg, MAXGNST), gc0(ngvarg), &
-                gcc(ngvarg, MAXGNST), gang1(ngvarg, MAXGNST), &
-                gang2(ngvarg, MAXGNST), gang3(ngvarg, MAXGNST), &
-                gaa(ngvarg, MAXGNST), ganis1(ngvarg, MAXGNST), &
-                ganis2(ngvarg, MAXGNST), stat=test)
+      allocate (pool(ngvarg), stat=test)
       if (test .ne. 0) stop "allocation failed due to insufficient memory!"
 
       ! write out headers if debugging
@@ -480,26 +487,36 @@ contains
 
       ! parse the Gaussian variogram models
       do iv = 1, ngvarg
-         read (lin, *, iostat=test) gnst(iv), gc0(iv)
+         read (lin, *, iostat=test) pool(iv)%nst, pool(iv)%c0
          if (test .ne. 0) stop "ERROR in parameter file"
-         write (*, *) '  gnst, gc0: ', gnst(iv), gc0(iv)
-         if (gnst(iv) .gt. MAXGNST) then
+         write (*, *) '  gnst, gc0: ', pool(iv)%nst, pool(iv)%c0
+         if (pool(iv)%nst .gt. MAXGNST) then
             write (*, *) 'gnst must be equal to ', MAXGNST
             stop
          end if
-         do j = 1, gnst(iv)
-            read (lin, *, iostat=test) git(iv, j), gcc(iv, j), gang1(iv, j), &
-               gang2(iv, j), gang3(iv, j)
+
+         allocate (pool(iv)%it(pool(iv)%nst), pool(iv)%cc(pool(iv)%nst), &
+                   pool(iv)%ang1(pool(iv)%nst), pool(iv)%ang2(pool(iv)%nst), pool(iv)%ang3(pool(iv)%nst), &
+                   pool(iv)%aa(pool(iv)%nst), pool(iv)%anis1(pool(iv)%nst), pool(iv)%anis2(pool(iv)%nst), &
+                   pool(iv)%ahmin(pool(iv)%nst), pool(iv)%avert(pool(iv)%nst), stat=test)
+         if (test .ne. 0) stop "allocation failed due to insufficient memory!"
+
+         do j = 1, pool(iv)%nst
+            read (lin, *, iostat=test) pool(iv)%it(j), pool(iv)%cc(j), pool(iv)%ang1(j), &
+               pool(iv)%ang2(j), pool(iv)%ang3(j)
             if (test .ne. 0) stop "ERROR in parameter file"
-            read (lin, *, iostat=test) gaa(iv, j), aa1, aa2
+            read (lin, *, iostat=test) pool(iv)%aa(j), pool(iv)%ahmin(j), pool(iv)%avert(j)
             if (test .ne. 0) stop "ERROR in parameter file"
-            ganis1(iv, j) = aa1/max(gaa(iv, j), EPSLON)
-            ganis2(iv, j) = aa2/max(gaa(iv, j), EPSLON)
-            write (*, *) ' git, gcc, gang[1,2,3]; ', git(iv, j), gcc(iv, j), &
-               gang1(iv, j), gang2(iv, j), gang3(iv, j)
-            write (*, *) ' a1 a2 a3: ', gaa(iv, j), aa1, aa2
+            pool(iv)%anis1(j) = pool(iv)%ahmin(j)/max(pool(iv)%aa(j), EPSLON)
+            pool(iv)%anis2(j) = pool(iv)%avert(j)/max(pool(iv)%aa(j), EPSLON)
+            write (*, *) ' git, gcc, gang[1,2,3]; ', pool(iv)%it(j), pool(iv)%cc(j), &
+               pool(iv)%ang1(j), pool(iv)%ang2(j), pool(iv)%ang3(j)
+            write (*, *) ' a1 a2 a3: ', pool(iv)%aa(j), pool(iv)%ahmin(j), pool(iv)%avert(j)
          end do
       end do
+
+      call set_sill(pool)
+      call set_rotmatrix(pool)
 
       ! finished reading data
       close (lin)
