@@ -1,8 +1,60 @@
 module covasubs
 
+   use types_mod
+   use constants, only: PI
+
    implicit none
 
 contains
+
+!Calculate the covariance between two points
+   real*8 function get_cov(vm, a, b) result(cov)
+      real*8, parameter :: EPSLON = 1.0e-5
+      type(variogram), intent(in) :: vm
+      real*8, dimension(3), intent(in) :: a, b
+      integer :: i
+      real*8 :: h, hr, hsqd
+
+! Check for "zero" distance, return with cmax if so:
+      if (dsqrd(a, b) < EPSLON) then
+         cov = vm%sill; return
+      end if
+
+! Loop over all the structures:
+      cov = 0.0D+00
+      do i = 1, vm%nst
+         hsqd = dsqrd(a, b, vm%rm(:, :, i))
+         h = dsqrt(hsqd)
+         hr = h/vm%aa(i)
+         VARIOTYPE:select case(vm%it(i))
+         case (1)   ! Spherical Variogram Model?
+         if (hr < 1.0D+00) cov = cov + vm%cc(i)*(1.0D+00 - hr*(1.5D+00 - 0.5D+00*hr**2))
+         case (2) ! Exponential Variogram Model?
+         cov = cov + vm%cc(i)*exp(-3.0D+00*hr)
+         case (3) ! Gaussian Variogram Model?
+         cov = cov + vm%cc(i)*exp(-3.0D+00*hr**2)
+         case (4) ! Power Variogram Model?
+         cov = cov + vm%sill - vm%cc(i)*(h**vm%aa(i))
+         case (5) ! Hole Effect Model?
+         cov = cov + vm%cc(i)*dcos(hr*PI)
+         end select VARIOTYPE
+      end do
+   end function get_cov
+
+!Get the anisotropic distance between two points
+   real*8 function dsqrd(a, b, rm)
+      real*8, intent(in) :: a(3), b(3)
+      real*8, optional :: rm(3, 3)
+      real*8 :: ba(3)
+      ba = b - a
+      if (present(rm)) then
+         dsqrd = (rm(1, 1)*ba(1) + rm(1, 2)*ba(2) + rm(1, 3)*ba(3))**2 + &
+                 (rm(2, 1)*ba(1) + rm(2, 2)*ba(2) + rm(2, 3)*ba(3))**2 + &
+                 (rm(3, 1)*ba(1) + rm(3, 2)*ba(2) + rm(3, 3)*ba(3))**2
+      else
+         dsqrd = ba(1)**2 + ba(2)**2 + ba(3)**2
+      end if
+   end function dsqrd
 
    subroutine cova3(x1, y1, z1, x2, y2, z2, ivarg, nst, MAXNST, c0, it, cc, aa, &
                     irot, MAXROT, rotmat, cmax, cova)
