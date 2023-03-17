@@ -1,5 +1,7 @@
 module subs
 
+   use mtmod
+
    implicit none
 
 contains
@@ -452,5 +454,19 @@ contains
          b(i) = b(i - 1) + a(i - 1)
       end do
    end function cumsum
+
+   subroutine shuffle(a)
+      implicit none
+      integer, intent(inout) :: a(:)
+      integer :: i, randpos, temp
+      real(8) :: r
+      do i = size(a), 2, -1
+         r = grnd()
+         randpos = int(r*i) + 1
+         temp = a(randpos)
+         a(randpos) = a(i)
+         a(i) = temp
+      end do
+   end subroutine shuffle
 
 end module subs
