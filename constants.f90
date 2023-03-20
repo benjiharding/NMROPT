@@ -8,6 +8,7 @@ module constants
    real(8), parameter :: DEG2RAD = PI/180d0
    integer, parameter :: MAXNST = 4
    integer, parameter :: MAXGNST = 1 ! max nst for Gaussian variograms
+   real(8), parameter :: MINCOV = 1e-3
 
 contains
 
