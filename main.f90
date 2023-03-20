@@ -1,7 +1,7 @@
 program main
 
    use readpar_mod
-   use lusim_mod
+   use sim_mod
    use network_mod
    use objective_mod
    use de_mod
