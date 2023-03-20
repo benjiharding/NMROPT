@@ -25,7 +25,8 @@ program main
    integer :: nfound
 
    ! normal equations
-   real(8) :: rhs(ndata), lhs(ndata, ndata), kwts(ndata, ndata)
+   integer, parameter :: nsearch = 2
+   real(8) :: rhs(nsearch), lhs(nsearch, nsearch), kwts(nsearch)
    real(8) :: cmean, cstdev
    integer :: nuse(ndata), useidx(ndata, ndata)
 
@@ -34,7 +35,6 @@ program main
    integer :: isim(ndata), randpath(ndata)
    real(8) :: p, xp
    integer :: simidx, ierr
-   real(8), parameter :: MINCOV = 1e-3
 
    ! indexes
    integer :: i, j, k, test
@@ -114,6 +114,9 @@ program main
          nuse(i) = nuse(i) + 1
          ! track data indices found at ith location
          useidx(nuse(i), i) = results(j)%idx
+
+         ! have we met the max search?
+         if (nuse(i) .ge. nsearch) exit
       end do
 
       ! calculate matrices for normal equations
@@ -135,15 +138,15 @@ program main
          end do
 
          ! solve the kriging system - external call to LAPACK
-         call solve(lhs(1:nuse(i), 1:nuse(i)), kwts(1:nuse(i), i), rhs(1:nuse(i)), &
+         call solve(lhs(1:nuse(i), 1:nuse(i)), kwts(1:nuse(i)), rhs(1:nuse(i)), &
                     nuse(i), 1, test)
 
          ! calcualte conditional mean and stdev
          cmean = 0.d0
          cstdev = get_cov(vm(1), [0.d0, 0.d0, 0.d0], [0.d0, 0.d0, 0.d0]) ! variance
          do j = 1, nuse(i)
-            cmean = cmean + kwts(j, i)*var(useidx(j, i))
-            cstdev = cstdev - kwts(j, i)*rhs(j)
+            cmean = cmean + kwts(j)*sim(useidx(j, i))
+            cstdev = cstdev - kwts(j)*rhs(j)
          end do
 
       else
