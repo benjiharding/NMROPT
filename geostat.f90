@@ -95,6 +95,7 @@ module geostat
    ! output realizations at data locations
    integer :: rseed ! random seed
    integer :: nreals ! number of realizations
+   integer :: stype ! simulation type
    real(8), allocatable :: ysimd(:, :, :) !(ndata, ngvarg + 1, nreals)
 
    !
