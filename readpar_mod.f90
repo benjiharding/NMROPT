@@ -115,6 +115,11 @@ contains
       if (test .ne. 0) stop "ERROR in parameter file"
       write (*, *) ' number of unconditional realizations: ', nreals
 
+      ! simulation type: 0 = LU, 1 = SGS
+      read (lin, *, iostat=test) stype
+      if (test .ne. 0) stop "ERROR in parameter file"
+      write (*, *) ' simulation type: ', stype
+
       ! grid definition
       read (lin, *, iostat=test) nx, xmn, xsiz
       if (test .ne. 0) stop "ERROR in parameter file"
