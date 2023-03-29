@@ -3,7 +3,7 @@ module objective_mod
    use geostat
    use sequences_mod, only: binary_runs, npoint_connect
    use vario_mod, only: update_vario, vario_mse, indicator_transform, &
-                        vario_pairs, varmodelpts
+                        vario_pairs, varmodelpts, set_sill
    use network_mod, only: network_forward
    use mtmod
    use subs
@@ -17,21 +17,20 @@ contains
 
       ! initialize objective targets, values and scaling components
 
-      integer :: numpairs(ndir)
       integer, allocatable :: tmppairs(:, :), tmpruns(:), tmparr(:)
-      integer, allocatable :: headt(:), tailt(:), lagt(:), lag_idxs(:)
+      integer, allocatable :: headt(:), tailt(:), lagt(:)
+      integer, allocatable :: lag_idxs(:), sub_idxs(:), valid_idxs(:)
       real(8), allocatable :: tmpbins(:), tmpnpt(:)
-      type(vario_array) :: varazm, vardip
 
-      integer :: maxlags
-      integer :: i, j, k, nl
+      integer :: maxlags, minlag, maxlag
+      integer :: i, ii, j, k, nl
 
       ! data coordinates
       x = xyz(1, :)
       y = xyz(2, :)
       z = xyz(3, :)
 
-      ! some allocations
+      ! allocate data arrays
       allocate (iz(ndata, ncut), ivars(ncut))
       allocate (AL(ndata), AL_i(ndata, ncut))
 
@@ -54,8 +53,16 @@ contains
          headt = tmppairs(:, 1)
          tailt = tmppairs(:, 2)
          lagt = tmppairs(:, 3)
-         numpairs(i) = size(lagt)
-         nl = maxval(lagt) - minval(lagt) + 1
+
+         ! ! this assumes defined lags are consecutive...
+         ! ! should probably check for all valid lag indices and put them in a separate  array
+         ! minlag = minval(lagt)
+         ! maxlag = maxval(lagt)
+         ! nl = maxlag - minlag + 1
+
+         ! check for valid lag indices (defined lag bins)
+         valid_idxs = pack([(ii, ii=1, expvar(i)%nlags)], tmpbins(:) .lt. HUGE(tmpbins))
+         nl = size(valid_idxs)
 
          ! only allocate the number of defined lags
          allocate (varazm%dirs(i)%vlags(nl))
@@ -69,16 +76,17 @@ contains
             ! experiemntal parameters
             varazm%dirs(i)%vlags(j) = expvar(i)%azm
             vardip%dirs(i)%vlags(j) = expvar(i)%dip
-            varlagdist%dirs(i)%vlags(j) = tmpbins(j)
+            varlagdist%dirs(i)%vlags(j) = tmpbins(valid_idxs(j))
 
             ! lag indices
             lag_idxs = pack([(k, k=1, size(tmppairs, dim=1))], &
-                            tmppairs(:, 3) .eq. j)
-            allocate (heads%dirs(i)%lags(j)%idxs(size(lag_idxs)))
-            allocate (tails%dirs(i)%lags(j)%idxs(size(lag_idxs)))
-            do k = 1, size(lag_idxs)
-               heads%dirs(i)%lags(j)%idxs(k) = headt(lag_idxs(k))
-               tails%dirs(i)%lags(j)%idxs(k) = tailt(lag_idxs(k))
+                            tmppairs(:, 3) .eq. valid_idxs(j))
+            call get_subsample(lag_idxs, max_pairs, sub_idxs)
+            allocate (heads%dirs(i)%lags(j)%idxs(size(sub_idxs)))
+            allocate (tails%dirs(i)%lags(j)%idxs(size(sub_idxs)))
+            do k = 1, size(sub_idxs)
+               heads%dirs(i)%lags(j)%idxs(k) = headt(sub_idxs(k))
+               tails%dirs(i)%lags(j)%idxs(k) = tailt(sub_idxs(k))
             end do
 
          end do
@@ -87,16 +95,16 @@ contains
       ! write out pairs if debugging
       if (idbg .gt. 0) then
          open (lprs, file="vario_pairs.out", status="UNKNOWN")
-         write (lprs, "(a28)") "Experimental Variogram Pairs"
+         write (lprs, "(A)") "Experimental Variogram Pairs"
          write (lprs, "(i1)") 4
-         write (lprs, "(a8)") "head idx"
-         write (lprs, "(a8)") "tail idx"
-         write (lprs, "(a7)") "lag idx"
-         write (lprs, "(a7)") "dir idx"
+         write (lprs, "(A)") "head idx"
+         write (lprs, "(A)") "tail idx"
+         write (lprs, "(A)") "lag idx"
+         write (lprs, "(A)") "dir idx"
          do i = 1, ndir
             do j = 1, size(heads%dirs(i)%lags)
                do k = 1, size(heads%dirs(i)%lags(j)%idxs)
-                  write (lprs, "(*(i5))") heads%dirs(i)%lags(j)%idxs(k), &
+                  write (lprs, "(*(i7, 1x))") heads%dirs(i)%lags(j)%idxs(k), &
                      tails%dirs(i)%lags(j)%idxs(k), j, i
                end do
             end do
@@ -141,7 +149,9 @@ contains
                              target_ivario%cuts(j)%dirs(k)%vlags)
          end do
       end do
+      call set_sill(ivmod)
 
+      ! cumulative runs target
       allocate (target_runs(maxrun, ncut))
       target_runs(:, :) = 0
       do i = 1, ncut
@@ -176,9 +186,9 @@ contains
       ! tracking the how much each component changes
 
       integer, parameter :: MAXPERT = 1000
-      real(8), allocatable :: vect_denorm(:), min_b(:), max_b(:)
+      real(8), allocatable :: vect_denorm(:), min_b(:), max_b(:), diff(:)
       real(8), allocatable :: trial(:), trial_denorm(:)
-      real(8) :: objinit(4), objdelta(4), diff, rescale
+      real(8) :: objinit(4), objdelta(4), rescale
       integer :: i, j
 
       objscale = 1.d0
@@ -189,6 +199,7 @@ contains
       allocate (min_b(size(vect)), max_b(size(vect)), trial(size(vect)))
       min_b = bmin
       max_b = bmax
+      diff = abs(min_b - max_b)
       vect_denorm = min_b + vect*diff
 
       ! the choice of the first realization here is arbitrary
