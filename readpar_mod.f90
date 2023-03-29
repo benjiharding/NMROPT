@@ -8,7 +8,7 @@ module readpar_mod
 
    implicit none
 
-   integer :: lin, lout, ldbg, dbgireal, lwts
+   integer :: lin, lout, ldbg, dbgireal, lwts, ltrg
    character(256) :: outfile
    character(256) :: dbgfile
    character(256) :: wtsfile
@@ -38,6 +38,7 @@ contains
       lout = 2
       ldbg = 3
       lwts = 4
+      ltrg = 8
 
       ! attempt to open the parfile
       do i = 1, 256
@@ -311,6 +312,11 @@ contains
       read (lin, *, iostat=test) idwpow
       if (test .ne. 0) stop "ERROR in parameter file"
       write (*, *) '  IDW power: ', idwpow
+
+      ! max number of experimental pairs
+      read (lin, *, iostat=test) max_pairs
+      if (test .ne. 0) stop "ERROR in parameter file"
+      write (*, *) '  Max number of experimental pairs: ', max_pairs
 
       ! standardize sills?
       read (lin, *, iostat=test) isill
