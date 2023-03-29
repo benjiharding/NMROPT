@@ -310,6 +310,7 @@ contains
       np = size(pairs, dim=1)
 
       ! get average distance in each lag bin
+      lagbins = HUGE(h)
       do n = 1, nlags
          h = 0.d0
          k = 0
@@ -318,8 +319,8 @@ contains
                h = h + lagh(i)
                k = k + 1
             end if
-            lagbins(n) = h/k
          end do
+         lagbins(n) = h/k
       end do
 
    end subroutine vario_pairs
