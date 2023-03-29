@@ -26,6 +26,7 @@ contains
 
       write (*, *) " "
       write (*, *) "Simulating unconditional factors..."
+      write (*, *) " "
 
       if (stype .eq. 0) then
          write (*, *) "using LU simulation"
@@ -86,23 +87,35 @@ contains
       integer, allocatable :: nuse(:), useidx(:, :)
 
       ! simulation
-      real(8), allocatable :: sim(:)
+      real(8), allocatable :: sim(:), anisxyz(:, :)
       integer, allocatable :: isim(:), randpath(:)
       real(8) :: p, xp
       integer :: simidx, ierr
       integer, parameter :: nsearch = 40
 
       ! indexes
-      integer :: i, j, k, igv, ireal, test
+      integer :: i, j, k, igv, nst, ireal, test
 
       ! allocate arrays based on number of data and max search
       allocate (rhs(nsearch), lhs(nsearch, nsearch), kwts(nsearch))
       allocate (nuse(ndata), useidx(ndata, ndata))
       allocate (sim(ndata), isim(ndata), randpath(ndata))
-      allocate (results(ndata))
+      allocate (results(ndata), anisxyz(3, ndata))
+
+      ! hard code number of structs to be 1 for each Gaussian
+      nst = 1
+
+      ! scale coordinates by anisotropy of current variogram model
+      if (.not. allocated(pool(igv)%rm)) then
+         call set_rotmatrix(pool)
+      end if
+
+      do i = 1, ndata
+         anisxyz(:, i) = matmul(pool(igv)%rm(:, :, nst), xyz(:, i))
+      end do
 
       ! build the search tree
-      tree => kdtree2_create(input_data=xyz, dim=3, sort=.true., rearrange=.true.)
+      tree => kdtree2_create(input_data=anisxyz, dim=3, sort=.true., rearrange=.true.)
 
       ! main loop over realizations
       do ireal = 1, nreals
@@ -123,7 +136,7 @@ contains
             simidx = randpath(i)
 
             ! query tree for this location
-            call kdtree2_r_nearest(tp=tree, qv=xyz(:, simidx), r2=pool(igv)%aa(1)**2, &
+            call kdtree2_r_nearest(tp=tree, qv=anisxyz(:, simidx), r2=pool(igv)%aa(nst)**2, &
                                    nfound=nfound, nalloc=ndata, results=results)
 
             ! loop over samples found in search
@@ -137,7 +150,7 @@ contains
                if (isim(results(j)%idx) .eq. 0) cycle ! no conditioning value here
 
                ! meet minimum covariance? (not collocated)
-               rhs(1) = get_cov(pool(igv), xyz(:, simidx), xyz(:, results(j)%idx))
+               rhs(1) = get_cov(pool(igv), anisxyz(:, simidx), anisxyz(:, results(j)%idx))
                if (rhs(1) .lt. MINCOV) cycle
 
                ! if we got this far increment number found at ith location
@@ -154,14 +167,14 @@ contains
             if (nuse(i) .gt. 0) then
                do j = 1, nuse(i)
                   ! build rhs vector
-                  rhs(j) = get_cov(pool(igv), xyz(:, simidx), xyz(:, useidx(j, i)))
+                  rhs(j) = get_cov(pool(igv), anisxyz(:, simidx), anisxyz(:, useidx(j, i)))
                   do k = j, nuse(i)
                      ! diagonal
                      if (j .eq. k) then
                         lhs(j, j) = 1.d0
                      else
                         ! build lhs matrix
-                        lhs(j, k) = get_cov(pool(igv), xyz(:, useidx(k, i)), xyz(:, useidx(j, i)))
+                        lhs(j, k) = get_cov(pool(igv), anisxyz(:, useidx(k, i)), anisxyz(:, useidx(j, i)))
                         if (lhs(j, k) .lt. 0) stop 'ERROR: Negative covariance.'
                         lhs(k, j) = lhs(j, k)
                      end if
