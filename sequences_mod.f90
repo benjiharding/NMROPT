@@ -187,7 +187,8 @@ contains
 
       end do
 
-      phi = prod/dble(lcount)
+      ! phi = prod/dble(lcount)
+      phi = prod/size(AL_i)
 
    end subroutine npoint_connect
 
