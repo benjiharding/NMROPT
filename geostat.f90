@@ -35,8 +35,10 @@ module geostat
    ! variogram parameters
    integer, allocatable :: pairs(:, :) ! (npairs*ndir, 3)
    integer, allocatable :: head(:), tail(:), lag(:), dir(:)
+   integer :: max_pairs
    type(lag_array) :: heads, tails
    type(vario_array) :: varlagdist
+   type(vario_array) :: varazm, vardip
 
    real(8), allocatable :: thresholds(:) ! for indicator transform
    real(8), allocatable :: ivars(:) ! indicator sills (ncut)
