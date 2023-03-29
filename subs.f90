@@ -469,4 +469,29 @@ contains
       end do
    end subroutine shuffle
 
+   subroutine get_subsample(idxs, max_sample, subidxs)
+
+      ! return a random subsample of data indices
+
+      integer, intent(in) :: idxs(:), max_sample
+      integer, allocatable, intent(out) :: subidxs(:)
+      integer :: i, num_samples, x(size(idxs))
+
+      num_samples = size(idxs)
+
+      if (num_samples .lt. max_sample) then
+         ! just return the initial idxs
+         allocate (subidxs(size(idxs)))
+         subidxs = idxs
+         return
+      end if
+
+      ! else return max_sample length permutation of idxs
+      allocate (subidxs(max_sample))
+      x = [(i, i=1, num_samples)]
+      call shuffle(x)
+      subidxs = idxs(x(1:max_sample))
+
+   end subroutine get_subsample
+
 end module subs
