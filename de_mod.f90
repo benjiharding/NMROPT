@@ -86,7 +86,9 @@ contains
          ! write out the current value?
          if (modulo(i, 100) .eq. 0) then
             write (*, *) " working on DE iteration", i
-            if (i .gt. 1) write (*, *) " current objective value", fobj(i - 1)
+            if (i .gt. 1) then
+               write (*, *) " current objective value", fobj(i - 1)/fobj(1)
+            end if
          end if
 
          ! crossover prob b/w cpho and cphi
@@ -170,7 +172,7 @@ contains
          fobj(i) = fitness(best_idx)
 
          ! write out the values
-         write (lobj, "(1(i0,1x),1(g14.8,1x))") i, fobj(i)
+         write (lobj, "(1(i0,1x),1(g14.8,1x))") i, fobj(i)/fobj(1)
 
          ! are we done early?
          if (fobj(i) .le. 0.0000000000000001D0) exit
