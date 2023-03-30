@@ -269,11 +269,11 @@ contains
       if (runs .gt. 0) objscale(3) = MAXPERT/objdelta(3)
       if (npoint .gt. 0) objscale(4) = MAXPERT/objdelta(4)
 
-      ! rescale factor
-      rescale = 0.0
-      rescale = rescale + objscale(1)*objinit(1) + objscale(2)*objinit(2) &
-                + objscale(3)*objinit(3) + objscale(4)*objinit(4)
-      rescale = 1.d0*max(rescale, EPSLON)
+      ! ! rescale factor
+      ! rescale = 0.0
+      ! rescale = rescale + objscale(1)*objinit(1) + objscale(2)*objinit(2) &
+      !           + objscale(3)*objinit(3) + objscale(4)*objinit(4)
+      ! rescale = 1.d0*max(rescale, EPSLON)
 
       ! user defined scaling if required
       objscale(1) = userfac(1)*objscale(1)
@@ -281,11 +281,11 @@ contains
       objscale(3) = userfac(3)*objscale(3)
       objscale(4) = userfac(4)*objscale(4)
 
-      ! final scaling
-      if (vario .gt. 0) objscale(1) = objscale(1)/rescale
-      if (ivario .gt. 0) objscale(2) = objscale(2)/rescale
-      if (runs .gt. 0) objscale(3) = objscale(3)/rescale
-      if (npoint .gt. 0) objscale(4) = objscale(4)/rescale
+      ! ! final scaling
+      ! if (vario .gt. 0) objscale(1) = objscale(1)/rescale
+      ! if (ivario .gt. 0) objscale(2) = objscale(2)/rescale
+      ! if (runs .gt. 0) objscale(3) = objscale(3)/rescale
+      ! if (npoint .gt. 0) objscale(4) = objscale(4)/rescale
 
    end subroutine obj_scale
 
@@ -395,7 +395,7 @@ contains
          objt = objt + mse
       end do
 
-      objt = objt/ncut
+      ! objt = objt/ncut
       objt = objt*objscale(3)
 
    end subroutine obj_runs
@@ -418,7 +418,7 @@ contains
          objt = objt + mse
       end do
 
-      objt = objt/ncut
+      ! objt = objt/ncut
       objt = objt*objscale(4)
 
    end subroutine obj_npoint
