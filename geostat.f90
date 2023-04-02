@@ -22,7 +22,8 @@ module geostat
    real(8), allocatable :: target_npoint(:, :) ! (ncut, nstep)
 
    ! objective function scaling
-   real(8) :: objscale(4) ! fobj scaling parameters
+   ! real(8) :: objscale(4) ! fobj scaling parameters
+   type(objective) :: objscale
    real(8) :: objt_vario, objt_ivario, objt_runs, objt_npt ! temp obj values
 
    ! drillhole parameters

@@ -25,6 +25,14 @@ module types_mod
       integer :: nlags
    end type experimental
 
+   ! objective values
+   type objective
+      real(8), allocatable :: vario(:)
+      real(8), allocatable :: ivario(:)
+      real(8), allocatable :: runs(:)
+      real(8), allocatable :: npoint(:)
+   end type objective
+
    ! ragged arrays for lag data
    type :: indices
       integer, allocatable :: idxs(:)
