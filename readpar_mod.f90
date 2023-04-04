@@ -386,10 +386,11 @@ contains
                write (*, *) ' a1 a2 a3: ', ivmod(ic)%aa(j), ivmod(ic)%ahmin(j), ivmod(ic)%avert(j)
             end do
          end do
-      end if
 
-      call set_sill(ivmod)
-      call set_rotmatrix(ivmod)
+         call set_sill(ivmod)
+         call set_rotmatrix(ivmod)
+
+      end if
 
       ! finished reading parameters
       close (lin)
