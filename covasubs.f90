@@ -258,6 +258,70 @@ contains
 
    end subroutine setrot
 
+   subroutine setrotmat(azm, dip, tilt, forwardrotmat, reverserotmat)
+      !-----------------------------------------------------------------------
+      !
+      !        Sets up the forward rotation matrix and reverse matrix
+      !
+      ! (c) Jared Deutsch, 2014
+      !-----------------------------------------------------------------------
+      implicit none
+      real(kind=8), parameter :: PI = 4*atan(1.0d0)
+      real(kind=8), intent(in) :: azm, dip, tilt
+      real(kind=8), dimension(3, 3) :: azmrotmat, diprotmat, tiltrotmat
+      real(kind=8), dimension(3, 3), intent(out) :: forwardrotmat, reverserotmat
+      real(kind=8) :: angle
+
+      ! Get the angle to rotate about the Z axis in radians
+      angle = (90d0 - azm)*PI/180d0
+      ! Rotation matrix for azimuth correction
+      azmrotmat = 0d0
+      azmrotmat(3, 3) = 1d0
+      azmrotmat(1, 1) = cos(angle)
+      azmrotmat(1, 2) = -1d0*sin(angle)
+      azmrotmat(2, 1) = sin(angle)
+      azmrotmat(2, 2) = cos(angle)
+
+      ! Get the angle to rotate about the new X' axis
+      angle = -1d0*(dip)*PI/180d0
+      ! Rotation matrix for dip correction
+      diprotmat = 0d0
+      diprotmat(2, 2) = 1d0
+      diprotmat(1, 1) = cos(angle)
+      diprotmat(1, 3) = sin(angle)
+      diprotmat(3, 1) = -1d0*sin(angle)
+      diprotmat(3, 3) = cos(angle)
+
+      ! Get the angle to rotate about the new Y' axis
+      angle = -1d0*(tilt)*PI/180d0
+      ! Rotation matrix for tilt correction
+      tiltrotmat = 0d0
+      tiltrotmat(1, 1) = 1d0
+      tiltrotmat(2, 2) = cos(angle)
+      tiltrotmat(2, 3) = sin(angle)
+      tiltrotmat(3, 2) = -1d0*sin(angle)
+      tiltrotmat(3, 3) = cos(angle)
+
+      ! Complete forward rotation matrix is the product of these 2 matrices
+      forwardrotmat = matmul(matmul(azmrotmat, diprotmat), tiltrotmat)
+      ! Reverse rotation matrix is the transpose of the forward matrix
+      ! as these matrices are orthogonal
+      reverserotmat = transpose(forwardrotmat)
+   end subroutine setrotmat
+
+   real(kind=8) function distance(xyz_a, xyz_b)
+      !-----------------------------------------------------------------------
+      !
+      !                  Distance given 2 x,y,z vectors
+      !
+      ! (c) Jared Deutsch, 2014
+      !-----------------------------------------------------------------------
+      real(kind=8), dimension(3), intent(in) :: xyz_a, xyz_b
+      distance = sqrt((xyz_a(1) - xyz_b(1))**2 + &
+                      (xyz_a(2) - xyz_b(2))**2 + &
+                      (xyz_a(3) - xyz_b(3))**2)
+   end function distance
+
    function sqdist(x1, y1, z1, x2, y2, z2, ind, MAXROT, rotmat) result(hsqd)
       !-----------------------------------------------------------------------
       !
