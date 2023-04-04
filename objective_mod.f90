@@ -3,7 +3,7 @@ module objective_mod
    use geostat
    use sequences_mod, only: binary_runs, npoint_connect
    use vario_mod, only: update_vario, vario_mse, indicator_transform, &
-                        vario_pairs, varmodelpts, set_sill
+                        vario_pairs, varmodelpts, set_sill, calc_expsill
    use network_mod, only: network_forward
    use mtmod
    use subs
@@ -25,11 +25,6 @@ contains
       integer :: maxlags, minlag, maxlag
       integer :: i, ii, j, k, nl
 
-      ! data coordinates
-      x = xyz(1, :)
-      y = xyz(2, :)
-      z = xyz(3, :)
-
       ! allocate data arrays
       allocate (iz(ndata, ncut), ivars(ncut))
       allocate (AL(ndata), AL_i(ndata, ncut))
@@ -46,8 +41,8 @@ contains
       allocate (varazm%dirs(ndir), vardip%dirs(ndir), varlagdist%dirs(ndir))
 
       do i = 1, ndir
-         call vario_pairs(x, y, z, expvar(i)%azm, expvar(i)%atol, expvar(i)%bandh, &
-                          expvar(i)%dip, expvar(i)%dtol, expvar(i)%bandv, &
+         call vario_pairs(xyz, expvar(i)%azm, expvar(i)%atol, expvar(i)%bandh, &
+                          expvar(i)%dip, expvar(i)%dtol, expvar(i)%bandv, expvar(i)%tilt, &
                           expvar(i)%nlags, expvar(i)%lagdis, expvar(i)%lagtol, &
                           ndata, tmppairs, tmpbins)
          headt = tmppairs(:, 1)
@@ -61,7 +56,7 @@ contains
          ! nl = maxlag - minlag + 1
 
          ! check for valid lag indices (defined lag bins)
-         valid_idxs = pack([(ii, ii=1, expvar(i)%nlags)], tmpbins(:) .lt. HUGE(tmpbins))
+         valid_idxs = pack([(ii, ii=1, expvar(i)%nlags + 1)], tmpbins(:) .lt. HUGE(tmpbins))
          nl = size(valid_idxs)
 
          ! only allocate the number of defined lags
@@ -113,62 +108,69 @@ contains
       end if
 
       ! variogram target
-      allocate (target_vario%dirs(ndir))
-      do i = 1, ndir
-         maxlags = size(varlagdist%dirs(i)%vlags)
-         allocate (target_vario%dirs(i)%vlags(maxlags))
-         call varmodelpts(vmod(1)%nst, vmod(1)%c0, vmod(1)%it, vmod(1)%cc, &
-                          vmod(1)%ang1, vmod(1)%ang2, vmod(1)%ang3, vmod(1)%aa, &
-                          vmod(1)%ahmin, vmod(1)%avert, maxlags, &
-                          varlagdist%dirs(i)%vlags, varazm%dirs(i)%vlags, &
-                          vardip%dirs(i)%vlags, target_vario%dirs(i)%vlags)
-      end do
+      if (vario .gt. 0) then
+         allocate (target_vario%dirs(ndir))
+         do i = 1, ndir
+            maxlags = size(varlagdist%dirs(i)%vlags)
+            allocate (target_vario%dirs(i)%vlags(maxlags))
+            call varmodelpts(vmod(1)%nst, vmod(1)%c0, vmod(1)%it, vmod(1)%cc, &
+                             vmod(1)%ang1, vmod(1)%ang2, vmod(1)%ang3, vmod(1)%aa, &
+                             vmod(1)%ahmin, vmod(1)%avert, maxlags, &
+                             varlagdist%dirs(i)%vlags, varazm%dirs(i)%vlags, &
+                             vardip%dirs(i)%vlags, target_vario%dirs(i)%vlags)
+         end do
+      end if
 
       ! indicator variogram target
-      allocate (target_ivario%cuts(ncut))
+      if (ivario .gt. 0) then
+         allocate (target_ivario%cuts(ncut))
+         do j = 1, ncut
 
-      do j = 1, ncut
+            allocate (target_ivario%cuts(j)%dirs(ndir))
 
-         allocate (target_ivario%cuts(j)%dirs(ndir))
+            ! rescale sill parameters
+            ivmod(j)%c0 = ivmod(j)%c0*ivars(j)
+            do i = 1, ivmod(j)%nst
+               ivmod(j)%cc(i) = ivmod(j)%cc(i)*ivars(j)
+            end do
 
-         ! rescale sill parameters
-         ivmod(j)%c0 = ivmod(j)%c0*ivars(j)
-         do i = 1, ivmod(j)%nst
-            ivmod(j)%cc(i) = ivmod(j)%cc(i)*ivars(j)
+            ! calculate the model points
+            do k = 1, ndir
+               maxlags = size(varlagdist%dirs(k)%vlags)
+               allocate (target_ivario%cuts(j)%dirs(k)%vlags(maxlags))
+               call varmodelpts(ivmod(j)%nst, ivmod(j)%c0, ivmod(j)%it, &
+                                ivmod(j)%cc, ivmod(j)%ang1, ivmod(j)%ang2, &
+                                ivmod(j)%ang3, ivmod(j)%aa, ivmod(j)%ahmin, &
+                                ivmod(j)%avert, maxlags, varlagdist%dirs(k)%vlags, &
+                                varazm%dirs(k)%vlags, vardip%dirs(k)%vlags, &
+                                target_ivario%cuts(j)%dirs(k)%vlags)
+            end do
          end do
-
-         ! calculate the model points
-         do k = 1, ndir
-            maxlags = size(varlagdist%dirs(k)%vlags)
-            allocate (target_ivario%cuts(j)%dirs(k)%vlags(maxlags))
-            call varmodelpts(ivmod(j)%nst, ivmod(j)%c0, ivmod(j)%it, &
-                             ivmod(j)%cc, ivmod(j)%ang1, ivmod(j)%ang2, &
-                             ivmod(j)%ang3, ivmod(j)%aa, ivmod(j)%ahmin, &
-                             ivmod(j)%avert, maxlags, varlagdist%dirs(k)%vlags, &
-                             varazm%dirs(k)%vlags, vardip%dirs(k)%vlags, &
-                             target_ivario%cuts(j)%dirs(k)%vlags)
-         end do
-      end do
-      call set_sill(ivmod)
+         call set_sill(ivmod)
+      end if
 
       ! cumulative runs target
-      allocate (target_runs(maxrun, ncut))
-      target_runs(:, :) = 0
-      do i = 1, ncut
-         do j = 1, ndh
-            tmparr = iz(udhidx(j) + 1:udhidx(j + 1), i)
-            call binary_runs(tmparr, maxrun, tmpruns)
-            target_runs(:, i) = target_runs(:, i) + tmpruns
+      if (runs .gt. 0) then
+         allocate (target_runs(maxrun, ncut))
+         target_runs(:, :) = 0
+         do i = 1, ncut
+            do j = 1, ndh
+               tmparr = iz(udhidx(j) + 1:udhidx(j + 1), i)
+               call binary_runs(tmparr, maxrun, tmpruns)
+               target_runs(:, i) = target_runs(:, i) + tmpruns
+            end do
          end do
-      end do
+      end if
 
       ! npoint connectivity target
-      allocate (target_npoint(nstep, ncut))
-      target_npoint(:, :) = 0.d0
-      do i = 1, ncut
-         call npoint_connect(iz(:, i), nstep, ndh, udhidx, tmpnpt)
-         target_npoint(:, i) = tmpnpt
-      end do
+      if (npoint .gt. 0) then
+         allocate (target_npoint(nstep, ncut))
+         target_npoint(:, :) = 0.d0
+         do i = 1, ncut
+            call npoint_connect(iz(:, i), nstep, ndh, udhidx, tmpnpt)
+            target_npoint(:, i) = tmpnpt
+         end do
+      end if
 
       ! scale the components
       write (*, *) " "
@@ -188,7 +190,7 @@ contains
       integer, parameter :: MAXPERT = 1000
       real(8), allocatable :: vect_denorm(:), min_b(:), max_b(:), diff(:)
       real(8), allocatable :: trial(:), trial_denorm(:)
-      real(8) :: objinit(4), objdelta(4), rescale
+      real(8) :: objinit(4), objdelta(4)
       integer :: i, j
 
       objscale = 1.d0
@@ -204,6 +206,7 @@ contains
 
       ! the choice of the first realization here is arbitrary
       call network_forward(ysimd(:, :, 1), vect_denorm, AL)
+      call calc_expsill(AL, sill)
       call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
       ! initilaize a starting value for each component
@@ -235,6 +238,7 @@ contains
 
          ! evalute the random vector
          call network_forward(ysimd(:, :, 1), trial_denorm, AL)
+         call calc_expsill(AL, sill)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
          if (vario .gt. 0) then
@@ -269,23 +273,11 @@ contains
       if (runs .gt. 0) objscale(3) = MAXPERT/objdelta(3)
       if (npoint .gt. 0) objscale(4) = MAXPERT/objdelta(4)
 
-      ! ! rescale factor
-      ! rescale = 0.0
-      ! rescale = rescale + objscale(1)*objinit(1) + objscale(2)*objinit(2) &
-      !           + objscale(3)*objinit(3) + objscale(4)*objinit(4)
-      ! rescale = 1.d0*max(rescale, EPSLON)
-
       ! user defined scaling if required
       objscale(1) = userfac(1)*objscale(1)
       objscale(2) = userfac(2)*objscale(2)
       objscale(3) = userfac(3)*objscale(3)
       objscale(4) = userfac(4)*objscale(4)
-
-      ! ! final scaling
-      ! if (vario .gt. 0) objscale(1) = objscale(1)/rescale
-      ! if (ivario .gt. 0) objscale(2) = objscale(2)/rescale
-      ! if (runs .gt. 0) objscale(3) = objscale(3)/rescale
-      ! if (npoint .gt. 0) objscale(4) = objscale(4)/rescale
 
    end subroutine obj_scale
 
@@ -307,6 +299,7 @@ contains
       do ireal = 1, nreals
 
          call network_forward(ysimd(:, :, ireal), v, AL)
+         call calc_expsill(AL, sill)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
          if (vario .gt. 0) call obj_vario(objt_vario)
@@ -335,7 +328,7 @@ contains
       objt = 0.d0
 
       do i = 1, ndir
-         call update_vario(heads%dirs(i), tails%dirs(i), AL, expvario)
+         call update_vario(heads%dirs(i), tails%dirs(i), AL, expvario, sill)
          call vario_mse(expvario, target_vario%dirs(i)%vlags, &
                         varlagdist%dirs(i)%vlags, dble(idwpow), mse)
          objt = objt + mse
@@ -360,7 +353,7 @@ contains
       do j = 1, ncut
          do i = 1, ndir
             call update_vario(heads%dirs(i), tails%dirs(i), dble(AL_i(:, j)), &
-                              expivario)
+                              expivario, 1.d0)
             call vario_mse(expivario, target_ivario%cuts(j)%dirs(i)%vlags, &
                            varlagdist%dirs(i)%vlags, dble(idwpow), mse)
             objt = objt + mse
