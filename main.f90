@@ -79,8 +79,9 @@ contains
             write (ltrg, "(A)") "Dip"
             do i = 1, nreals
                call network_forward(ysimd(:, :, i), best, opt_AL)
+               call calc_expsill(opt_AL, sill)
                do j = 1, ndir
-                  call update_vario(heads%dirs(j), tails%dirs(j), opt_AL, expvario)
+                  call update_vario(heads%dirs(j), tails%dirs(j), opt_AL, expvario, sill)
                   do k = 1, size(heads%dirs(j)%lags)
                      write (ltrg, "(*(g14.8,1x))") i, j, varlagdist%dirs(j)%vlags(k), &
                         size(heads%dirs(j)%lags(k)%idxs), expvario(k), target_vario%dirs(j)%vlags(k), &
@@ -110,7 +111,7 @@ contains
                call indicator_transform(opt_AL, thresholds, ndata, ncut, opt_AL_i, ivars)
                do ic = 1, ncut
                   do j = 1, ndir
-                     call update_vario(heads%dirs(j), tails%dirs(j), dble(opt_AL_i(:, ic)), expvario)
+                     call update_vario(heads%dirs(j), tails%dirs(j), dble(opt_AL_i(:, ic)), expvario, 1.d0)
                      do k = 1, size(heads%dirs(j)%lags)
                         write (ltrg, "(*(g14.8,1x))") i, ic, j, varlagdist%dirs(j)%vlags(k), &
                            size(heads%dirs(j)%lags(k)%idxs), expvario(k)/ivmod(ic)%sill, &
@@ -151,7 +152,7 @@ contains
             close (ltrg)
          end if
 
-         if (npoint .gt. 0 .or. runs .gt. 0) then
+         if (npoint .gt. 0) then
             ! write out final n-point connectivity values
             open (ltrg, file="npoint.out", status="UNKNOWN")
             write (ltrg, "(A)") "Experimental n-Point Connectivity Values"
