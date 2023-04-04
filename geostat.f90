@@ -42,8 +42,8 @@ module geostat
 
    real(8), allocatable :: thresholds(:) ! for indicator transform
    real(8), allocatable :: ivars(:) ! indicator sills (ncut)
+   real(8) :: sill
    integer, allocatable :: nlags(:) ! multiple directions
-   integer, allocatable :: stride(:, :) ! (nlags, ndir)
    type(experimental), allocatable :: expvar(:)
    type(variogram), allocatable :: vmod(:)
    type(variogram), allocatable :: ivmod(:)
