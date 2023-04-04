@@ -82,9 +82,9 @@ contains
       real(8), allocatable :: Amat(:, :), A_prev(:, :)
       real(8), allocatable :: W(:, :), WL(:, :), b(:, :), bL(:, :), &
                               Zmat(:, :), ZL(:, :)
-      real(8), allocatable :: vrg(:)
+      real(8), allocatable :: vrg(:), tmp(:)
       integer :: sw(2), sb(2)
-      integer :: i, ld
+      integer :: i, ld, ierr
 
       Amat = Ymat
       ld = size(layer_dims)
@@ -140,68 +140,68 @@ contains
       AL = ZL(:, 1)
 
       ! normal score transform
-      call nscore(AL, wts, vrg)
+      ! call nscore(AL, wts, vrg)
+      call nscore(size(AL), AL, dble(-1.0e21), dble(1.0e21), 1, wts, tmp, vrg, ierr)
       AL = vrg
 
    end subroutine network_forward
 
-   subroutine nscore(dvar, dwts, vrg)
+   ! subroutine nscore(dvar, dwts, vrg)
 
-      ! parameters
-      real(8), intent(in) :: dvar(:), dwts(:)
-      ! integer :: rseed = 5841044
+   !    ! parameters
+   !    real(8), intent(in) :: dvar(:), dwts(:)
 
-      ! result
-      real(8), allocatable, intent(out) :: vrg(:)
+   !    ! result
+   !    real(8), allocatable, intent(out) :: vrg(:)
 
-      ! internal variables
-      real(8), allocatable :: vr(:)  ! temp copy of 'dvar'
-      real(8), allocatable :: wt_ns(:)
-      real(8) :: vrrg, vrr
-      real(8) :: u, twt, wtfac, oldcp, cp, w
-      real(8), dimension(1) :: c, d, e, f, g, h, aa
-      integer :: i, j, nd, ierr
+   !    ! internal variables
+   !    real(8), allocatable :: vr(:)  ! temp copy of 'dvar'
+   !    real(8), allocatable :: wt_ns(:)
+   !    real(8) :: vrrg, vrr
+   !    real(8) :: u, twt, wtfac, oldcp, cp, w
+   !    real(8), dimension(1) :: c, d, e, f, g, h, aa
+   !    integer :: i, j, nd, ierr
 
-      nd = size(dvar, dim=1)
-      wt_ns = dwts
+   !    nd = size(dvar, dim=1)
+   !    wt_ns = dwts
 
-      ! allocate output array
-      allocate (vr(nd), vrg(nd))
+   !    ! allocate output array
+   !    allocate (vr(nd), vrg(nd))
 
-      ! add small random value for sorting
-      do i = 1, nd
-         u = grnd()
-         vr(i) = dvar(i) + u*EPSLON
-         twt = twt + wt_ns(i)
-      end do
+   !    ! add small random value for sorting
+   !    do i = 1, nd
+   !       u = grnd()
+   !       vr(i) = dvar(i) + u*EPSLON
+   !       twt = twt + wt_ns(i)
+   !    end do
 
-      ! sort by data value
-      call sortem(1, nd, vr, 1, wt_ns, c, d, e, f, g, h, aa)
+   !    ! sort by data value
+   !    call sortem(1, nd, vr, 1, wt_ns, c, d, e, f, g, h, aa)
 
-      ! compute the cumulative probabilities
-      wtfac = 1.d0/twt
-      oldcp = 0.d0
-      cp = 0.d0
-      do j = 1, nd
-         w = wtfac*wt_ns(j)
-         cp = cp + w
-         wt_ns(j) = (cp + oldcp)/2.d0
-         call gauinv(wt_ns(j), vrrg, ierr)
-         oldcp = cp
-         ! now, reset the weight to the normal scores value
-         wt_ns(j) = vrrg
-      end do
+   !    ! compute the cumulative probabilities
+   !    wtfac = 1.d0/twt
+   !    oldcp = 0.d0
+   !    cp = 0.d0
+   !    do j = 1, nd
+   !       w = wtfac*wt_ns(j)
+   !       cp = cp + w
+   !       wt_ns(j) = (cp + oldcp)/2.d0
+   !       call gauinv(wt_ns(j), vrrg, ierr)
+   !       oldcp = cp
+   !       ! now, reset the weight to the normal scores value
+   !       wt_ns(j) = vrrg
+   !    end do
 
-      ! normal scores transform
-      do i = 1, nd
-         u = grnd()
-         vrr = dvar(i) + u*EPSLON
-         call locate(vr, nd, 1, nd, vrr, j)
-         j = min(max(1, j), (nd - 1))
-         vrg(i) = powint(vr(j), vr(j + 1), wt_ns(j), wt_ns(j + 1), vrr, 1.d0)
-      end do
+   !    ! normal scores transform
+   !    do i = 1, nd
+   !       u = grnd()
+   !       vrr = dvar(i) + u*EPSLON
+   !       call locate(vr, nd, 1, nd, vrr, j)
+   !       j = min(max(1, j), (nd - 1))
+   !       vrg(i) = powint(vr(j), vr(j + 1), wt_ns(j), wt_ns(j + 1), vrr, 1.d0)
+   !    end do
 
-   end subroutine nscore
+   ! end subroutine nscore
 
    subroutine print_matrix(A)
       real(8), intent(in) :: A(:, :)  ! An assumed-shape dummy argument
