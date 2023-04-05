@@ -23,7 +23,7 @@ contains
       real(8), allocatable :: tmpbins(:), tmpnpt(:)
 
       integer :: maxlags, minlag, maxlag
-      integer :: i, ii, j, k, nl
+      integer :: i, ii, j, k, nl, hidx, tidx
 
       ! allocate data arrays
       allocate (iz(ndata, ncut), ivars(ncut))
@@ -45,8 +45,8 @@ contains
                           expvar(i)%dip, expvar(i)%dtol, expvar(i)%bandv, expvar(i)%tilt, &
                           expvar(i)%nlags, expvar(i)%lagdis, expvar(i)%lagtol, &
                           ndata, tmppairs, tmpbins)
-         headt = tmppairs(:, 1)
-         tailt = tmppairs(:, 2)
+         tailt = tmppairs(:, 1)
+         headt = tmppairs(:, 2)
          lagt = tmppairs(:, 3)
 
          ! ! this assumes defined lags are consecutive...
@@ -91,16 +91,24 @@ contains
       if (idbg .gt. 0) then
          open (lprs, file="vario_pairs.out", status="UNKNOWN")
          write (lprs, "(A)") "Experimental Variogram Pairs"
-         write (lprs, "(i1)") 4
-         write (lprs, "(A)") "head idx"
-         write (lprs, "(A)") "tail idx"
-         write (lprs, "(A)") "lag idx"
-         write (lprs, "(A)") "dir idx"
+         write (lprs, "(i2)") 10
+         write (lprs, "(A)") "Tail Index"
+         write (lprs, "(A)") "Head Index"
+         write (lprs, "(A)") "Lag Index"
+         write (lprs, "(A)") "Direction Index"
+         write (lprs, "(A)") "Tail x"
+         write (lprs, "(A)") "Tail y"
+         write (lprs, "(A)") "Tail z"
+         write (lprs, "(A)") "Head x"
+         write (lprs, "(A)") "Head y"
+         write (lprs, "(A)") "Head z"
          do i = 1, ndir
             do j = 1, size(heads%dirs(i)%lags)
                do k = 1, size(heads%dirs(i)%lags(j)%idxs)
-                  write (lprs, "(*(i7, 1x))") heads%dirs(i)%lags(j)%idxs(k), &
-                     tails%dirs(i)%lags(j)%idxs(k), j, i
+                  tidx = tails%dirs(i)%lags(j)%idxs(k)
+                  hidx = heads%dirs(i)%lags(j)%idxs(k)
+                  write (lprs, "(*(g14.8,1x))") tidx, hidx, j, i, xyz(1, tidx), xyz(2, tidx), &
+                     xyz(3, tidx), xyz(1, hidx), xyz(2, hidx), xyz(3, hidx)
                end do
             end do
          end do
@@ -178,7 +186,10 @@ contains
 
       call obj_scale
 
-      write (*, "(*(i2,a2,g14.8,1x))") (i, ":", objscale(i), i=1, 4)
+      write (*, "(A*(g14.8,1x))") "Variogram component: ", objscale(1)
+      write (*, "(A*(g14.8,1x))") "Indicator variogram component: ", objscale(2)
+      write (*, "(A*(g14.8,1x))") "Runs component: ", objscale(3)
+      write (*, "(A*(g14.8,1x))") "N-point component: ", objscale(4)
 
    end subroutine init_objective
 
