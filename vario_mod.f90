@@ -66,7 +66,7 @@ contains
       integer :: i, np, nl
 
       nl = size(head%lags)
-      allocate (expvario(nl))
+      allocate (expvario(nl)) ! move this allocation outside subroutine?
       expvario = -999.d0
 
       do i = 1, nl
@@ -82,6 +82,8 @@ contains
    end subroutine update_vario
 
    subroutine calc_expsill(var, sill)
+
+      ! sill of traditional variogram (variance)
 
       real(8), intent(in) :: var(:)
       real(8), intent(out) :: sill
@@ -105,7 +107,7 @@ contains
 
    subroutine vario_mse(expvario, varmodelvals, varlagdist, idwpow, mse)
 
-      ! MSE between experimental points and variogram model
+      ! Weighted MSE between experimental points and variogram model
 
       ! parameters
       real(8), intent(inout) :: expvario(:)
@@ -127,8 +129,8 @@ contains
       idw_wts = inv_dist(varlagdist, idwpow, nlags)
 
       ! get the weighted MSE
-      mse = sum(idw_wts*(varmodelvals - expvario)**2)
-      mse = 1.d0/dble(nlags)*mse/sum(idw_wts)
+      mse = sum(idw_wts*(varmodelvals - expvario)**2)/dble(nlags)
+      ! mse = 1.d0/dble(nlags)*mse/sum(idw_wts)
 
    end subroutine vario_mse
 
@@ -356,6 +358,9 @@ contains
                           bandvert, tilt, nlags, lagdist, lagtol, ndata, &
                           pairs, lagbins)
 
+      ! This subroutine assembles variogram pair indices following the
+      ! logic of varcalc.f90
+
       ! parameters
       real(8), intent(in) :: xyz(3, ndata)
       real(8), intent(in) :: azm, azmtol, bandhorz, dip, diptol, &
@@ -372,8 +377,8 @@ contains
       integer :: introtindex(ndata)
       real(8) :: angle, azmtolrad, diptolrad, diptoldist, azmtoldist, farthest, &
                  ymin, ymax, zmin, zmax, xdist, h
-      real(8), dimension(3, 3) :: rotmat, forwardrotmat, reverserotmat
-      integer :: i, j, k, n, np, maxpairs, outputidx, startidx
+      real(8), dimension(3, 3) :: forwardrotmat, reverserotmat
+      integer :: i, j, k, n, np, maxpairs, startidx
       logical :: omni
 
       ! Initialize index tracking for values
@@ -426,9 +431,9 @@ contains
          xyzrot(:, i) = matmul(xyz(:, i), forwardrotmat)
       end do
 
-      ! Sort along the direction vector
-      call dblemodsortem(xyzrot(1, :), ndata, 3, xyzrot(2, :), xyzrot(3, :), &
-                         dblerotindex)
+      ! ! Sort along the direction vector
+      ! call dblemodsortem(xyzrot(1, :), ndata, 3, xyzrot(2, :), xyzrot(3, :), &
+      !                    dblerotindex)
 
       ! Track the sorted indices for computing values
       do i = 1, ndata
@@ -508,8 +513,8 @@ contains
 
                   ! pair is acceptable if we got this far
                   k = k + 1
-                  pairs(k, 1) = j
-                  pairs(k, 2) = i
+                  pairs(k, 1) = i
+                  pairs(k, 2) = j
                   pairs(k, 3) = n + 1
                   lagh(k) = h
 
