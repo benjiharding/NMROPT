@@ -40,20 +40,22 @@ contains
 
       ! conveience subroutine to write out final files
 
-      real(8), allocatable :: opt_AL(:)
-      integer, allocatable :: opt_AL_i(:, :)
+      real(8), allocatable :: opt_AL(:, :)
+      integer, allocatable :: opt_AL_i(:, :, :)
       real(8), allocatable :: expvario(:), expnpoint(:)
       integer, allocatable :: expruns(:)
       integer :: cumruns(maxrun)
       integer :: i, ic, j, k
 
-      allocate (opt_AL(ndata), opt_AL_i(ndata, ncut))
+      allocate (opt_AL(ndata, nreals), opt_AL_i(ndata, ncut, nreals))
 
       ! write out the optimized network mixture
       do i = 1, nreals
-         call network_forward(ysimd(:, :, i), best, opt_AL)
+         call network_forward(ysimd(:, :, i), best, opt_AL(:, i))
+         call indicator_transform(opt_AL(:, i), thresholds, ndata, ncut, &
+                                  opt_AL_i(:, :, i), ivars)
          do j = 1, ndata
-            write (lout, "(*(g14.8,1x))") opt_AL(j)
+            write (lout, "(*(g14.8,1x))") opt_AL(j, i)
          end do
       end do
 
@@ -78,10 +80,9 @@ contains
             write (ltrg, "(A)") "Azimuth"
             write (ltrg, "(A)") "Dip"
             do i = 1, nreals
-               call network_forward(ysimd(:, :, i), best, opt_AL)
-               call calc_expsill(opt_AL, sill)
+               call calc_expsill(opt_AL(:, i), sill)
                do j = 1, ndir
-                  call update_vario(heads%dirs(j), tails%dirs(j), opt_AL, expvario, sill)
+                  call update_vario(heads%dirs(j), tails%dirs(j), opt_AL(:, i), expvario, sill)
                   do k = 1, size(heads%dirs(j)%lags)
                      write (ltrg, "(*(g14.8,1x))") i, j, varlagdist%dirs(j)%vlags(k), &
                         size(heads%dirs(j)%lags(k)%idxs), expvario(k), target_vario%dirs(j)%vlags(k), &
@@ -107,11 +108,9 @@ contains
             write (ltrg, "(A)") "Azimuth"
             write (ltrg, "(A)") "Dip"
             do i = 1, nreals
-               call network_forward(ysimd(:, :, i), best, opt_AL)
-               call indicator_transform(opt_AL, thresholds, ndata, ncut, opt_AL_i, ivars)
                do ic = 1, ncut
                   do j = 1, ndir
-                     call update_vario(heads%dirs(j), tails%dirs(j), dble(opt_AL_i(:, ic)), expvario, 1.d0)
+                     call update_vario(heads%dirs(j), tails%dirs(j), dble(opt_AL_i(:, ic, i)), expvario, 1.d0)
                      do k = 1, size(heads%dirs(j)%lags)
                         write (ltrg, "(*(g14.8,1x))") i, ic, j, varlagdist%dirs(j)%vlags(k), &
                            size(heads%dirs(j)%lags(k)%idxs), expvario(k)/ivmod(ic)%sill, &
@@ -135,12 +134,10 @@ contains
             write (ltrg, "(A)") "Cumulative Runs"
             write (ltrg, "(A)") "Target Value"
             do i = 1, nreals
-               call network_forward(ysimd(:, :, i), best, opt_AL)
-               call indicator_transform(opt_AL, thresholds, ndata, ncut, opt_AL_i, ivars)
                do ic = 1, ncut
                   cumruns = 0
                   do j = 1, ndh
-                     call binary_runs(opt_AL_i(udhidx(j) + 1:udhidx(j + 1), ic), &
+                     call binary_runs(opt_AL_i(udhidx(j) + 1:udhidx(j + 1), ic, i), &
                                       maxrun, expruns)
                      cumruns = cumruns + expruns
                   end do
@@ -163,10 +160,8 @@ contains
             write (ltrg, "(A)") "Prob of Connection"
             write (ltrg, "(A)") "Target Value"
             do i = 1, nreals
-               call network_forward(ysimd(:, :, i), best, opt_AL)
-               call indicator_transform(opt_AL, thresholds, ndata, ncut, opt_AL_i, ivars)
                do ic = 1, ncut
-                  call npoint_connect(opt_AL_i(:, ic), nstep, ndh, udhidx, expnpoint)
+                  call npoint_connect(opt_AL_i(:, ic, i), nstep, ndh, udhidx, expnpoint)
                   do k = 1, nstep
                      write (ltrg, "(*(g14.8,1x))") i, ic, k, expnpoint(k), target_npoint(k, ic)
                   end do
