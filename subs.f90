@@ -862,7 +862,6 @@ contains
       ! (xhigh,yhigh) for a value of x and a power pow
 
       real(8) :: xlow, xhigh, ylow, yhigh, xval, pow, y
-      real(8), parameter :: EPSLON = 1e-5
 
       if ((xhigh - xlow) .lt. EPSLON) then
          y = (yhigh + ylow)/2.D0
