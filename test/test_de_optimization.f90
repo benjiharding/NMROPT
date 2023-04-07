@@ -11,30 +11,33 @@ contains
 
       real(8), parameter :: mut = 0.7, cplo = 0.5, cphi = 1.0
       real(8), parameter :: bmin = -5, bmax = 5
-      integer, parameter :: popsize = 10, its = 1000
+      integer, parameter :: popsize = 10, its = 1000, dims = 2
       integer, intent(in) :: ifunc
-      real(8), intent(inout) :: best(:)
-      real(8) :: vect(2)
-
-      best = -999.d0
+      real(8), allocatable, intent(inout) :: best(:)
+      real(8) :: vect(dims)
 
       vect(1) = grnd()
       vect(2) = grnd()
 
-      call de(ifunc=ifunc)
+      call de(dims, popsize, its, mut, cplo, cphi, bmin, bmax, best, ifunc)
 
    end subroutine optimize_with_de
 
    subroutine minimize_ackley(best)
+
       integer, parameter :: ifunc = 1
-      real(8), intent(inout) :: best(2)
+      real(8), allocatable, intent(inout) :: best(:)
+
       call optimize_with_de(ifunc, best)
+
    end subroutine minimize_ackley
 
    subroutine minimize_beale(best)
+
       integer, parameter :: ifunc = 2
-      real(8), intent(inout) :: best(2)
+      real(8), allocatable, intent(inout) :: best(:)
       call optimize_with_de(ifunc, best)
+
    end subroutine minimize_beale
 
 end module test_de_optimization
