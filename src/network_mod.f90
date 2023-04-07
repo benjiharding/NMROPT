@@ -1,6 +1,6 @@
 module network_mod
 
-   use geostat, only: layer_dims, iwts, ibias, vect, af, wts
+   use geostat, only: layer_dims, iwts, ibias, vect, af, wts, dims
    use mtmod
    use subs
    use constants
@@ -53,6 +53,7 @@ contains
 
       ! allocate output array
       allocate (vect(sum(nwts) + sum(nbias)))
+      dims = size(vect)
 
       do i = 1, size(vect)
          vect(i) = grnd()

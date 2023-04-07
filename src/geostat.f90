@@ -77,6 +77,7 @@ module geostat
    ! network architecture
    integer, allocatable :: layer_dims(:), iwts(:), ibias(:)
    real(8), allocatable :: vect(:) ! candidate vector
+   integer :: dims ! dimension of vect
    integer :: af ! activation function
 
    ! data parameters
