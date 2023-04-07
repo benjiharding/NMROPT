@@ -30,16 +30,24 @@ contains
 
    end subroutine optimize
 
-   subroutine de()
+   subroutine de(ifunc)
 
       ! differential evolution
-      integer :: i, j, k, dims, cp, best_idx, idxs(3)
+      integer, optional, intent(in) :: ifunc
+      integer :: i, j, k, dims, cp, best_idx, idxs(3), func
       real(8), allocatable :: pop(:, :), pop_denorm(:, :)
       real(8), allocatable :: min_b(:, :), max_b(:, :), diff(:, :)
       real(8), allocatable :: a(:), b(:), c(:), mutant(:)
       real(8), allocatable :: trial(:), trial_denorm(:), cr(:)
       real(8), allocatable :: fitness(:), fobj(:)
       real(8) :: fit, ftry, rand(3)
+
+      ! interface for passing arbitrary objective functions
+      if (.not. present(ifunc)) then
+         func = 0
+      else
+         func = ifunc
+      end if
 
       ! allocate the population and bounds
       dims = size(vect)
@@ -72,8 +80,9 @@ contains
       allocate (fitness(popsize))
       fitness = 0.d0
       do i = 1, popsize
-         call obj_nmr(pop_denorm(:, i), fit)
-         fitness(i) = fit
+         ! call obj_nmr(pop_denorm(:, i), fit)
+         ! fitness(i) = fit
+         fitness(i) = objfunc(pop_denorm(:, i), func)
       end do
 
       ! get the current best
@@ -152,7 +161,8 @@ contains
             ! denormalize the trial and evaluate
             ftry = 0.d0
             trial_denorm = min_b(:, 1) + trial*diff(:, 1)
-            call obj_nmr(trial_denorm, ftry)
+            ! call obj_nmr(trial_denorm, ftry)
+            ftry = objfunc(trial_denorm, func)
 
             ! did we improve?
             if (ftry .lt. fitness(j)) then
@@ -184,18 +194,33 @@ contains
    !
    ! unit testing purposes
    !
+   ! function objfunc(z, ifunc) result(v)
+
+   !    real(8), intent(in) :: z(:)
+   !    real(8) :: v
+   !    integer, optional :: ifunc
+
+   !    if (.not. present(ifunc)) then
+   !       call obj_nmr(z, v)
+   !    else
+   !       if (ifunc .eq. 1) call ackley(z, v)
+   !       if (ifunc .eq. 2) call beale(z, v)
+   !    end if
+
+   ! end function objfunc
+
    function objfunc(z, ifunc) result(v)
 
       real(8), intent(in) :: z(:)
-      integer :: ifunc
       real(8) :: v
+      integer :: ifunc
 
-      if (ifunc .eq. 0) then
-         call obj_nmr(z, v)
-      else
-         if (ifunc .eq. 1) call ackley(z, v)
-         if (ifunc .eq. 2) call beale(z, v)
-      end if
+      ! default behaviour
+      if (ifunc .eq. 0) call obj_nmr(z, v)
+
+      ! unit testing
+      if (ifunc .eq. 1) call ackley(z, v)
+      if (ifunc .eq. 2) call beale(z, v)
 
    end function objfunc
 
