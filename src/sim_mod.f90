@@ -217,6 +217,17 @@ contains
 
    end subroutine sequential_sim
 
+   subroutine krige(i, igv, pool, anisxyz, rhs, lhs, kwts, nuse, useidx, cmean, cstdev)
+
+      integer, intent(in) :: i, igv, nuse(:), useidx(:, :)
+      real(8), intent(in) :: anisxyz(:, :)
+      type(variogram), intent(in) :: pool
+      real(8), intent(inout) :: rhs(:), lhs(:, :), kwts(:)
+      real(8), intent(out) :: cmean, cstdev
+      integer :: j, k
+
+   end subroutine krige
+
    subroutine lusim(igv)
 
       ! unconditional LU simulation using Gaussian variogram index igv
