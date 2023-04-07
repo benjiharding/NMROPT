@@ -1,7 +1,7 @@
 module de_mod
 
    use geostat, only: mut, cplo, cphi, crossp, popsize, its, best, vect, &
-                      bmin, bmax, lobj
+                      bmin, bmax, lobj, dims
    use objective_mod, only: obj_nmr
    use mtmod
    use subs
@@ -21,7 +21,7 @@ contains
 
       call cpu_time(start)
 
-      call de()
+      call de(dims, popsize, its, mut, cplo, cphi, bmin, bmax, best)
 
       call cpu_time(finish)
 
@@ -30,11 +30,18 @@ contains
 
    end subroutine optimize
 
-   subroutine de(ifunc)
+   subroutine de(dims, popsize, its, mut, cplo, cphi, bmin, bmax, best, ifunc)
 
       ! differential evolution
+
+      ! inputs
+      integer, intent(in) :: dims, popsize, its
+      real(8), intent(in) :: mut, cplo, cphi, bmin, bmax
+      real(8), allocatable, intent(inout) :: best(:)
       integer, optional, intent(in) :: ifunc
-      integer :: i, j, k, dims, cp, best_idx, idxs(3), func
+
+      ! local variables
+      integer :: i, j, k, cp, best_idx, idxs(3), func
       real(8), allocatable :: pop(:, :), pop_denorm(:, :)
       real(8), allocatable :: min_b(:, :), max_b(:, :), diff(:, :)
       real(8), allocatable :: a(:), b(:), c(:), mutant(:)
@@ -50,7 +57,7 @@ contains
       end if
 
       ! allocate the population and bounds
-      dims = size(vect)
+      allocate (best(dims))
       allocate (pop(dims, popsize))
       allocate (min_b(dims, 1), max_b(dims, 1))
       min_b = bmin
@@ -93,10 +100,12 @@ contains
       do i = 1, its
 
          ! write out the current value?
-         if (modulo(i, 100) .eq. 0) then
-            write (*, *) " working on DE iteration", i
-            if (i .gt. 1) then
-               write (*, *) " current objective value", fobj(i - 1)/fobj(1)
+         if (.not. present(ifunc)) then
+            if (modulo(i, 100) .eq. 0) then
+               write (*, *) " working on DE iteration", i
+               if (i .gt. 1) then
+                  write (*, *) " current objective value", fobj(i - 1)/fobj(1)
+               end if
             end if
          end if
 
@@ -181,8 +190,10 @@ contains
          ! store this iterations best value
          fobj(i) = fitness(best_idx)
 
-         ! write out the values
-         write (lobj, "(1(i0,1x),1(g14.8,1x))") i, fobj(i)/fobj(1)
+         if (.not. present(ifunc)) then
+            ! write out the values
+            write (lobj, "(1(i0,1x),1(g14.8,1x))") i, fobj(i)/fobj(1)
+         end if
 
          ! are we done early?
          if (fobj(i) .le. 0.0000000000000001D0) exit
@@ -194,21 +205,6 @@ contains
    !
    ! unit testing purposes
    !
-   ! function objfunc(z, ifunc) result(v)
-
-   !    real(8), intent(in) :: z(:)
-   !    real(8) :: v
-   !    integer, optional :: ifunc
-
-   !    if (.not. present(ifunc)) then
-   !       call obj_nmr(z, v)
-   !    else
-   !       if (ifunc .eq. 1) call ackley(z, v)
-   !       if (ifunc .eq. 2) call beale(z, v)
-   !    end if
-
-   ! end function objfunc
-
    function objfunc(z, ifunc) result(v)
 
       real(8), intent(in) :: z(:)
