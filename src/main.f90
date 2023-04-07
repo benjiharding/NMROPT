@@ -30,6 +30,7 @@ program main
    ! write files
    call write_files
 
+   ! close all output files
    close (lout)
    close (ldbg)
    close (lwts)
