@@ -3,7 +3,7 @@ program tester
    use, intrinsic :: iso_fortran_env, only: error_unit
    use testdrive, only: run_testsuite, new_testsuite, testsuite_type
    use test_suite1, only: collect_suite1
-!    use test_suite2, only: collect_suite2
+   use test_suite2, only: collect_suite2
 
    implicit none
 
@@ -14,7 +14,8 @@ program tester
    stat = 0
 
    testsuites = [ &
-                new_testsuite("suite1", collect_suite1) &
+                new_testsuite("variogram suite", collect_suite1), &
+                new_testsuite("optimization suite", collect_suite2) &
                 ]
 
    do is = 1, size(testsuites)
