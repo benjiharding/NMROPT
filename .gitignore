@@ -28,17 +28,16 @@
 
 # Executables
 *.exe
-*.out
 *.app
 
 # random
+*.out
 *.pkl
 *.dat
 *.dbg
 *.par
 *.csv
 *.pdf
-*test*
 nb/*
 .vscode
 LAPACK/*
