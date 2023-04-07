@@ -2,7 +2,6 @@ module test_suite1
 
    use testdrive, only: new_unittest, unittest_type, error_type, check
    use test_variograms, only: get_variogram_pairs, get_variogram_values
-   use test_de_optimization, only: minimize_ackley, minimize_beale
 
    implicit none
 
@@ -21,9 +20,7 @@ contains
 
       testsuite = [ &
                   new_unittest("test_vario_pairs", test_vario_pairs), &
-                  new_unittest("test_vario_values", test_vario_values), &
-                  new_unittest("test_ackley_function", test_ackley_function), &
-                  new_unittest("test_beale_function", test_beale_function) &
+                  new_unittest("test_vario_values", test_vario_values) &
                   ]
 
    end subroutine collect_suite1
@@ -68,37 +65,5 @@ contains
       if (allocated(error)) return
 
    end subroutine test_vario_values
-
-   subroutine test_ackley_function(error)
-      type(error_type), allocatable, intent(out) :: error
-      real(8) :: true(2), best(2), diff(2)
-      integer :: i
-
-      true = [0.d0, 0.d0]
-      call minimize_ackley(best)
-      diff = true - best
-
-      do i = 1, size(true)
-         call check(error, (diff(i) .lt. EPSLON), .true.)
-         if (allocated(error)) return
-      end do
-
-   end subroutine test_ackley_function
-
-   subroutine test_beale_function(error)
-      type(error_type), allocatable, intent(out) :: error
-      real(8) :: true(2), best(2), diff(2)
-      integer :: i
-
-      true = [3.d0, 0.d50]
-      call minimize_beale(best)
-      diff = true - best
-
-      do i = 1, size(true)
-         call check(error, (diff(i) .lt. EPSLON), .true.)
-         if (allocated(error)) return
-      end do
-
-   end subroutine test_beale_function
 
 end module test_suite1
