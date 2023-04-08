@@ -33,7 +33,7 @@ contains
 
       true = [0.d0, 0.d0]
       call minimize_ackley(best)
-      diff = true - best
+      diff = abs(true - best)
 
       do i = 1, size(true)
          call check(error, (diff(i) .lt. EPSLON), .true.)
@@ -48,9 +48,9 @@ contains
       real(8), allocatable :: best(:)
       integer :: i
 
-      true = [3.d0, 0.d50]
+      true = [3.d0, 0.5d0]
       call minimize_beale(best)
-      diff = true - best
+      diff = abs(true - best)
 
       do i = 1, size(true)
          call check(error, (diff(i) .lt. EPSLON), .true.)
