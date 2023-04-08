@@ -94,7 +94,7 @@ contains
       integer, parameter :: nsearch = 40
 
       ! indexes
-      integer :: i, j, k, igv, nst, ireal, test
+      integer :: i, j, igv, nst, ireal
 
       ! allocate arrays based on number of data and max search
       allocate (rhs(nsearch), lhs(nsearch, nsearch), kwts(nsearch))
@@ -165,35 +165,8 @@ contains
 
             ! calculate matrices for normal equations
             if (nuse(i) .gt. 0) then
-               do j = 1, nuse(i)
-                  ! build rhs vector
-                  rhs(j) = get_cov(pool(igv), anisxyz(:, simidx), anisxyz(:, useidx(j, i)))
-                  do k = j, nuse(i)
-                     ! diagonal
-                     if (j .eq. k) then
-                        lhs(j, j) = 1.d0
-                     else
-                        ! build lhs matrix
-                        lhs(j, k) = get_cov(pool(igv), anisxyz(:, useidx(k, i)), anisxyz(:, useidx(j, i)))
-                        if (lhs(j, k) .lt. 0) stop 'ERROR: Negative covariance.'
-                        lhs(k, j) = lhs(j, k)
-                     end if
-                  end do
-               end do
-
-               ! solve the kriging system - external call to LAPACK
-               call solve(lhs(1:nuse(i), 1:nuse(i)), kwts(1:nuse(i)), rhs(1:nuse(i)), &
-                          nuse(i), 1, test)
-
-               ! calcualte conditional mean and stdev
-               cmean = 0.d0
-               cstdev = get_cov(pool(igv), [0.d0, 0.d0, 0.d0], [0.d0, 0.d0, 0.d0]) ! variance
-               do j = 1, nuse(i)
-                  ! cmean considers previusly simulated values
-                  cmean = cmean + kwts(j)*sim(useidx(j, i))
-                  cstdev = cstdev - kwts(j)*rhs(j)
-               end do
-
+               call krige(i, pool(igv), anisxyz, rhs, lhs, kwts, nuse, useidx, &
+                          sim, simidx, cmean, cstdev)
             else
                ! if no data the distribution is N(0,1)
                cmean = 0.d0
@@ -217,14 +190,45 @@ contains
 
    end subroutine sequential_sim
 
-   subroutine krige(i, igv, pool, anisxyz, rhs, lhs, kwts, nuse, useidx, cmean, cstdev)
+   subroutine krige(i, vm, anisxyz, rhs, lhs, kwts, nuse, useidx, &
+                    sim, simidx, cmean, cstdev)
 
-      integer, intent(in) :: i, igv, nuse(:), useidx(:, :)
-      real(8), intent(in) :: anisxyz(:, :)
-      type(variogram), intent(in) :: pool
+      integer, intent(in) :: i, nuse(:), useidx(:, :), simidx
+      real(8), intent(in) :: anisxyz(:, :), sim(:)
+      type(variogram) :: vm
       real(8), intent(inout) :: rhs(:), lhs(:, :), kwts(:)
       real(8), intent(out) :: cmean, cstdev
-      integer :: j, k
+      integer :: j, k, test
+
+      ! calculate matrices for normal equations
+      do j = 1, nuse(i)
+         ! build rhs vector
+         rhs(j) = get_cov(vm, anisxyz(:, simidx), anisxyz(:, useidx(j, i)))
+         do k = j, nuse(i)
+            ! diagonal
+            if (j .eq. k) then
+               lhs(j, j) = 1.d0
+            else
+               ! build lhs matrix
+               lhs(j, k) = get_cov(vm, anisxyz(:, useidx(k, i)), anisxyz(:, useidx(j, i)))
+               if (lhs(j, k) .lt. 0) stop 'ERROR: Negative covariance.'
+               lhs(k, j) = lhs(j, k)
+            end if
+         end do
+      end do
+
+      ! solve the kriging system - external call to LAPACK
+      call solve(lhs(1:nuse(i), 1:nuse(i)), kwts(1:nuse(i)), rhs(1:nuse(i)), &
+                 nuse(i), 1, test)
+
+      ! calcualte conditional mean and stdev
+      cmean = 0.d0
+      cstdev = get_cov(vm, [0.d0, 0.d0, 0.d0], [0.d0, 0.d0, 0.d0]) ! variance
+      do j = 1, nuse(i)
+         ! cmean considers previusly simulated values
+         cmean = cmean + kwts(j)*sim(useidx(j, i))
+         cstdev = cstdev - kwts(j)*rhs(j)
+      end do
 
    end subroutine krige
 
