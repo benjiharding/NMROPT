@@ -193,6 +193,8 @@ contains
    subroutine krige(i, vm, anisxyz, rhs, lhs, kwts, nuse, useidx, &
                     sim, simidx, cmean, cstdev)
 
+      ! simple kriging conditional mean and variance
+
       integer, intent(in) :: i, nuse(:), useidx(:, :), simidx
       real(8), intent(in) :: anisxyz(:, :), sim(:)
       type(variogram) :: vm
