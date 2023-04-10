@@ -25,7 +25,7 @@ contains
 
       ! write out the optimized network mixture
       do i = 1, nreals
-         call network_forward(ysimd(:, :, i), best, opt_AL(:, i))
+         call network_forward(ysimd(:, :, i), best, opt_AL(:, i), .true.)
          call indicator_transform(opt_AL(:, i), thresholds, ndata, ncut, &
                                   opt_AL_i(:, :, i), ivars)
          do j = 1, ndata

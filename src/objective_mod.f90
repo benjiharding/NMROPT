@@ -181,7 +181,7 @@ contains
       vect_denorm = min_b + vect*diff
 
       ! the choice of the first realization here is arbitrary
-      call network_forward(ysimd(:, :, 1), vect_denorm, AL)
+      call network_forward(ysimd(:, :, 1), vect_denorm, AL, .true.)
       call calc_expsill(AL, sill)
       call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
@@ -213,7 +213,7 @@ contains
          trial_denorm = min_b + trial*diff
 
          ! evalute the random vector
-         call network_forward(ysimd(:, :, 1), trial_denorm, AL)
+         call network_forward(ysimd(:, :, 1), trial_denorm, AL, .true.)
          call calc_expsill(AL, sill)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
@@ -274,7 +274,7 @@ contains
 
       do ireal = 1, nreals
 
-         call network_forward(ysimd(:, :, ireal), v, AL)
+         call network_forward(ysimd(:, :, ireal), v, AL, .true.)
          call calc_expsill(AL, sill)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
