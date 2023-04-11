@@ -24,8 +24,9 @@ contains
       allocate (opt_AL(ndata, nreals), opt_AL_i(ndata, ncut, nreals))
 
       ! write out the optimized network mixture
+      call vector_to_matrices(best, nnet)
       do i = 1, nreals
-         call network_forward(ysimd(:, :, i), best, opt_AL(:, i), .true.)
+         call network_forward(nnet, ysimd(:, :, i), opt_AL(:, i), .true.)
          call indicator_transform(opt_AL(:, i), thresholds, ndata, ncut, &
                                   opt_AL_i(:, :, i), ivars)
          do j = 1, ndata

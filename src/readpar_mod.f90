@@ -194,21 +194,22 @@ contains
       write (lobj, "(a15)") "objective value"
 
       ! network architecture
-      read (lin, *, iostat=test) nnl
+      read (lin, *, iostat=test) nnet%nl !nnl
       if (test .ne. 0) stop "ERROR in parameter file"
-      write (*, *) ' number of network layers: ', nnl
+      write (*, *) ' number of network layers: ', nnet%nl !nnl
 
-      allocate (layer_dims(nnl), stat=test)
+      ! allocate (layer_dims(nnl), stat=test)
+      allocate (nnet%ld(nnet%nl), stat=test)
       if (test .ne. 0) stop "allocation failed due to insufficient memory!"
 
-      read (lin, *, iostat=test) layer_dims
+      read (lin, *, iostat=test) nnet%ld !layer_dims
       if (test .ne. 0) stop "ERROR in parameter file"
-      write (*, "(a,10(i0,x))") '  network layer dimensions: ', layer_dims
+      write (*, "(a,10(i0,x))") '  network layer dimensions: ', nnet%ld !layer_dims
 
       ! activation function
-      read (lin, *, iostat=test) af
+      read (lin, *, iostat=test) nnet%af !af
       if (test .ne. 0) stop "ERROR in parameter file"
-      write (*, "(a,10(i0,x))") '  activation function: ', af
+      write (*, "(a,10(i0,x))") '  activation function: ', nnet%af !af
 
       ! Gaussian pool file
       read (lin, '(a256)', iostat=test) poolfile
@@ -481,7 +482,7 @@ contains
       write (*, *) " reading covariance structure of Gaussian pool..."
 
       ! allocate arrays for the pool
-      ngvarg = layer_dims(1) - 1
+      ngvarg = nnet%ld(1) - 1 !layer_dims(1) - 1
       allocate (pool(ngvarg), stat=test)
       if (test .ne. 0) stop "allocation failed due to insufficient memory!"
 

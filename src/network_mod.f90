@@ -1,6 +1,7 @@
 module network_mod
 
-   use geostat, only: layer_dims, iwts, ibias, vect, af, wts, dims
+   use geostat, only: nnet, wts
+   use types_mod, only: network
    use mtmod
    use subs
    use constants
@@ -17,51 +18,82 @@ module network_mod
 
 contains
 
-   subroutine init_network()
+   subroutine init_network(net)
 
-      ! initialize network layer parameters and weight vector
+      ! initialize network layer parameters and weight/bias matrices
+
+      ! parameters
+      type(network), intent(inout) :: net
 
       ! local variables
       integer, allocatable :: nwts(:), nbias(:)
-      integer :: i, j, ld
+      integer :: i, j
 
-      ld = size(layer_dims)
-      allocate (nwts(ld - 1), nbias(ld - 1))
-      allocate (iwts(ld), ibias(ld))
+      ! allocate some counters matrix indices
+      allocate (nwts(net%nl - 1), nbias(net%nl - 1))
+      allocate (net%iwts(net%nl), net%ibias(net%nl))
 
-      ! number of connections and bias terms
-      do i = 1, ld - 1
-         nwts(i) = layer_dims(i)*layer_dims(i + 1)
+      ! number of weights
+      do i = 1, net%nl - 1
+         nwts(i) = net%ld(i)*net%ld(i + 1)
       end do
 
-      do j = 2, ld
-         nbias(j - 1) = layer_dims(j)
+      ! number of bias terms
+      do j = 2, net%nl
+         nbias(j - 1) = net%ld(j)
       end do
 
-      ! matrix indices from cumulative sums
-      iwts(1) = 0
-      iwts(2:) = nwts
-      do i = 2, ld
-         iwts(i) = iwts(i - 1) + nwts(i - 1)
+      ! weight matrix indices from cumulative sums
+      net%iwts(1) = 0
+      net%iwts(2:) = nwts
+      do i = 2, net%nl
+         net%iwts(i) = net%iwts(i - 1) + nwts(i - 1)
       end do
 
-      ibias(1) = sum(nwts)
-      ibias(2:) = nbias
-      do j = 2, ld
-         ibias(j) = ibias(j - 1) + nbias(j - 1)
+      ! bias matrix indices from cumulative sums
+      net%ibias(1) = sum(nwts)
+      net%ibias(2:) = nbias
+      do j = 2, net%nl
+         net%ibias(j) = net%ibias(j - 1) + nbias(j - 1)
       end do
 
-      ! allocate output array
-      allocate (vect(sum(nwts) + sum(nbias)))
-      dims = size(vect)
-
-      do i = 1, size(vect)
-         vect(i) = grnd()
+      ! allocate network weight and bias matrices
+      allocate (net%layer(net%nl - 1)) ! excludes input layer
+      do i = 1, net%nl - 1
+         ! get matrix shapes
+         net%layer(i)%sw = [net%ld(i + 1), net%ld(i)] ! weight matrix shape
+         net%layer(i)%sb = [net%ld(i + 1), 1] ! bias vector shape
+         ! allocate
+         allocate (net%layer(i)%nnwts(net%ld(i + 1), net%ld(i)))
+         allocate (net%layer(i)%nnbias(net%ld(i + 1), 1))
       end do
+
+      ! total number of dimensions
+      net%dims = sum(nwts) + sum(nbias)
 
    end subroutine init_network
 
-   subroutine network_forward(Ymat, v, AL, nstrans)
+   subroutine vector_to_matrices(vector, net)
+
+      ! reshape trial vector (DE output) to neural network weight matrices
+      ! this subroutine updates the inupt type(network) object
+
+      type(network), intent(inout) :: net
+      real(8), intent(in) :: vector(:)
+      integer :: i
+
+      do i = 1, net%nl - 1
+
+         ! reshape weights and biases
+         net%layer(i)%nnwts = reshape(vector(net%iwts(i) + 1:net%iwts(i + 1)), &
+                                      shape=(net%layer(i)%sw), order=[2, 1])
+         net%layer(i)%nnbias = reshape(vector(net%ibias(i) + 1:net%ibias(i + 1)), &
+                                       shape=(net%layer(i)%sb), order=[2, 1])
+      end do
+
+   end subroutine vector_to_matrices
+
+   subroutine network_forward(net, Ymat, AL, nstrans)
 
       ! forward pass through network
 
@@ -74,11 +106,12 @@ contains
       ! linear activation on final layer followed by nscore
 
       ! parameters
-      real(8), intent(in) :: Ymat(:, :), v(:)
-      logical, intent(in) :: nstrans
+      type(network), intent(inout) :: net ! neural network object
+      real(8), intent(in) :: Ymat(:, :) ! simulated factors
+      logical, intent(in) :: nstrans ! nscore transform flag
 
       ! return
-      real(8), intent(inout) :: AL(:)
+      real(8), intent(inout) :: AL(:) ! output mixture vector
 
       ! internal variables
       procedure(afunc), pointer :: f_ptr => null()
@@ -86,40 +119,35 @@ contains
       real(8), allocatable :: W(:, :), WL(:, :), b(:, :), bL(:, :), &
                               Zmat(:, :), ZL(:, :)
       real(8), allocatable :: vrg(:), tmp(:)
-      integer :: sw(2), sb(2)
-      integer :: i, ld, ierr
+      integer :: i, ierr
 
       Amat = Ymat
-      ld = size(layer_dims)
 
       ! pointer to activation function
-      if (af .eq. 1) then
+      if (net%af .eq. 1) then
          f_ptr => sigmoid
-      else if (af .eq. 2) then
+      else if (net%af .eq. 2) then
          f_ptr => hyptan
-      else if (af .eq. 3) then
+      else if (net%af .eq. 3) then
          f_ptr => relu
-      else if (af .eq. 4) then
+      else if (net%af .eq. 4) then
          f_ptr => linear
       end if
 
       ! hidden layers
-      do i = 2, ld - 1
+      do i = 1, net%nl - 2 ! excludes input and output
 
-         ! matrix shapes
-         sw = [layer_dims(i), layer_dims(i - 1)] ! wts
-         sb = [layer_dims(i), 1] ! bias vector
+         A_prev = Amat
 
          ! reshape weights and biases
-         W = reshape(v(iwts(i - 1) + 1:iwts(i)), shape=(sw), order=[2, 1])
-         b = reshape(v(ibias(i - 1) + 1:ibias(i)), shape=(sb), order=[2, 1])
+         W = net%layer(i)%nnwts
+         b = net%layer(i)%nnbias
 
          ! transpose prior to forward pass
          W = transpose(W)
          b = transpose(b)
 
          ! forward pass
-         A_prev = Amat
          b = spread(b(1, :), 1, size(A_prev, dim=1))
          Zmat = matmul(A_prev, W) + b
          Amat = f_ptr(Zmat)
@@ -127,13 +155,10 @@ contains
       end do
 
       ! output layer
-      sw = [layer_dims(ld), layer_dims(ld - 1)] ! wt matrix
-      sb = [layer_dims(ld), 1] ! bias vector
-
-      WL = reshape(v(iwts(ld - 1) + 1:iwts(ld)), shape=(sw), order=[2, 1])
+      WL = net%layer(net%nl - 1)%nnwts
       WL = transpose(WL)
 
-      bL = reshape(v(ibias(ld - 1) + 1:ibias(ld)), shape=(sb), order=[2, 1])
+      bL = net%layer(net%nl - 1)%nnbias
       bL = transpose(bL)
       bL = spread(bL(1, :), 1, size(Amat, dim=1))
 
@@ -142,7 +167,7 @@ contains
       ! linear activation and reduce dims
       AL = ZL(:, 1)
 
-      ! normal score transform
+      ! normal score transform if required
       if (nstrans) then
          call nscore(size(AL), AL, dble(-1.0e21), dble(1.0e21), 1, &
                      wts, tmp, vrg, ierr)

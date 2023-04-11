@@ -4,7 +4,7 @@ module objective_mod
    use sequences_mod, only: binary_runs, npoint_connect
    use vario_mod, only: update_vario, vario_mse, indicator_transform, &
                         vario_pairs, varmodelpts, set_sill, calc_expsill
-   use network_mod, only: network_forward
+   use network_mod, only: network_forward, vector_to_matrices
    use mtmod
    use subs
    use constants
@@ -164,7 +164,7 @@ contains
       ! tracking the how much each component changes
 
       integer, parameter :: MAXPERT = 1000
-      real(8), allocatable :: vect_denorm(:), min_b(:), max_b(:), diff(:)
+      real(8), allocatable :: vect(:), vect_denorm(:), min_b(:), max_b(:), diff(:)
       real(8), allocatable :: trial(:), trial_denorm(:)
       real(8) :: objinit(4), objdelta(4)
       integer :: i, j
@@ -174,14 +174,21 @@ contains
       objdelta = 0.d0
 
       ! initial trial vector
-      allocate (min_b(size(vect)), max_b(size(vect)), trial(size(vect)))
+      allocate (vect(nnet%dims))
+      allocate (min_b(nnet%dims), max_b(nnet%dims), trial(nnet%dims))
       min_b = bmin
       max_b = bmax
       diff = abs(min_b - max_b)
+      do i = 1, nnet%dims
+         vect(i) = grnd()
+      end do
       vect_denorm = min_b + vect*diff
 
+      ! get matrices for this trial vector
+      call vector_to_matrices(vect_denorm, nnet)
+
       ! the choice of the first realization here is arbitrary
-      call network_forward(ysimd(:, :, 1), vect_denorm, AL, .true.)
+      call network_forward(nnet, ysimd(:, :, 1), AL, .true.)
       call calc_expsill(AL, sill)
       call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
@@ -212,8 +219,11 @@ contains
          end do
          trial_denorm = min_b + trial*diff
 
+         ! get matrices for this trial vector
+         call vector_to_matrices(trial_denorm, nnet)
+
          ! evalute the random vector
-         call network_forward(ysimd(:, :, 1), trial_denorm, AL, .true.)
+         call network_forward(nnet, ysimd(:, :, 1), AL, .true.)
          call calc_expsill(AL, sill)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
@@ -272,9 +282,12 @@ contains
       objt_runs = 0.d0
       objt_npt = 0.d0
 
+      ! get matrices for this trial vector
+      call vector_to_matrices(v, nnet)
+
       do ireal = 1, nreals
 
-         call network_forward(ysimd(:, :, ireal), v, AL, .true.)
+         call network_forward(nnet, ysimd(:, :, ireal), AL, .true.)
          call calc_expsill(AL, sill)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 

@@ -19,7 +19,7 @@ program main
    call simulate
 
    ! initialize network parameters
-   call init_network
+   call init_network(nnet)
 
    ! initialize objective function parameters
    call init_objective
