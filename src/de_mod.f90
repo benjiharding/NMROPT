@@ -1,8 +1,9 @@
 module de_mod
 
-   use geostat, only: mut, cplo, cphi, crossp, popsize, its, best, vect, &
-                      bmin, bmax, lobj, dims
+   use geostat, only: mut, cplo, cphi, crossp, popsize, its, best, &
+                      bmin, bmax, lobj, nnet
    use objective_mod, only: obj_nmr
+   use types_mod
    use mtmod
    use subs
    use constants
@@ -21,7 +22,7 @@ contains
 
       call cpu_time(start)
 
-      call de(dims, popsize, its, mut, cplo, cphi, bmin, bmax, best)
+      call de(nnet%dims, popsize, its, mut, cplo, cphi, bmin, bmax, best)
 
       call cpu_time(finish)
 
