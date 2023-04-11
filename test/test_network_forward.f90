@@ -1,5 +1,6 @@
 module test_network_forward
 
+   use types_mod
    use network_mod
    use subs
 
@@ -7,24 +8,23 @@ module test_network_forward
 
 contains
 
-   subroutine network_forward_pass(af, nstrans)
+   subroutine reshape_trial_vector_to_matrices(net)
 
-      ! parameters
-      logical, intent(in) :: nstrans
-      integer, intent(in) :: af
+      integer, parameter :: nl = 3, dims = 11, af = 4
+      type(network), intent(inout) :: net
+      real(8) :: vector(dims)
 
-      ! network architecture
-      integer, allocatable :: layer_dims(:), iwts(:), ibias(:)
-      real(8), allocatable :: Ymat(:, :), v(:)
-      real(8), allocatable :: AL(:)
-      integer :: dims ! dimension of vect
+      net%nl = nl
+      net%dims = dims
+      net%af = af
+      net%ld = [3, 2, 1]
 
-      ! test example
-      layer_dims = [3, 2, 1]
-      !   v =
+      call init_network(net)
 
-      call init_network
+      vector = [11., 12., 13., 21., 22., 23., 34., 35., 91., 92., 93.]
 
-   end subroutine network_forward_pass
+      call vector_to_matrices(vector, net)
+
+   end subroutine reshape_trial_vector_to_matrices
 
 end module test_network_forward
