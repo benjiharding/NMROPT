@@ -17,7 +17,6 @@ module geostat
    ! objective function targets
    type(vario_array) :: target_vario ! (ndir*nlags)
    type(ivario_array) :: target_ivario ! (ncut, ndir*nlags)
-
    integer, allocatable :: target_runs(:, :) ! (ncut, maxrun)
    real(8), allocatable :: target_npoint(:, :) ! (ncut, nstep)
 
@@ -39,7 +38,6 @@ module geostat
    type(lag_array) :: heads, tails
    type(vario_array) :: varlagdist
    type(vario_array) :: varazm, vardip
-
    real(8), allocatable :: thresholds(:) ! for indicator transform
    real(8), allocatable :: ivars(:) ! indicator sills (ncut)
    real(8) :: sill
@@ -76,10 +74,6 @@ module geostat
 
    ! network architecture
    type(network) :: nnet
-   ! real(8), allocatable :: vect(:) ! candidate vector
-   ! integer, allocatable :: layer_dims(:), iwts(:), ibias(:)
-   ! integer :: dims ! dimension of vect
-   ! integer :: af ! activation function
 
    ! data parameters
    real(8), allocatable :: var(:), wts(:) ! variable and weights
