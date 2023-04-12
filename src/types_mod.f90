@@ -27,8 +27,8 @@ module types_mod
 
    ! neural network parameters
    type weights
-      real(8), allocatable :: nnwts(:, :)
-      real(8), allocatable :: nnbias(:, :)
+      real(8), allocatable :: nnwts(:, :) ! (n, n)
+      real(8), allocatable :: nnbias(:, :) ! (n, 1)
       integer :: sw(2), sb(2) ! shape of weights and bias matrices
    end type weights
 
@@ -45,9 +45,11 @@ module types_mod
    type :: indices
       integer, allocatable :: idxs(:)
    end type indices
+
    type :: lags
       type(indices), allocatable :: lags(:)
    end type lags
+
    type :: lag_array
       type(lags), allocatable :: dirs(:)
    end type lag_array
@@ -56,9 +58,11 @@ module types_mod
    type :: vlags
       real(8), allocatable :: vlags(:)
    end type vlags
+
    type :: vario_array
       type(vlags), allocatable :: dirs(:)
    end type vario_array
+
    type :: ivario_array
       type(vario_array), allocatable :: cuts(:)
    end type ivario_array
