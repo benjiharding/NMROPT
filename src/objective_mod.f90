@@ -101,11 +101,11 @@ contains
 
             allocate (target_ivario%cuts(j)%dirs(ndir))
 
-            ! rescale sill parameters
-            ivmod(j)%c0 = ivmod(j)%c0*ivars(j)
-            do i = 1, ivmod(j)%nst
-               ivmod(j)%cc(i) = ivmod(j)%cc(i)*ivars(j)
-            end do
+            ! ! rescale sill parameters
+            ! ivmod(j)%c0 = ivmod(j)%c0*ivars(j)
+            ! do i = 1, ivmod(j)%nst
+            !    ivmod(j)%cc(i) = ivmod(j)%cc(i)*ivars(j)
+            ! end do
 
             ! calculate the model points
             do k = 1, ndir
@@ -119,7 +119,7 @@ contains
                                 target_ivario%cuts(j)%dirs(k)%vlags)
             end do
          end do
-         call set_sill(ivmod)
+         ! call set_sill(ivmod)
       end if
 
       ! cumulative runs target
@@ -342,7 +342,7 @@ contains
       do j = 1, ncut
          do i = 1, ndir
             call update_vario(heads%dirs(i), tails%dirs(i), dble(AL_i(:, j)), &
-                              expivario, 1.d0)
+                              expivario, ivars(j))
             call vario_mse(expivario, target_ivario%cuts(j)%dirs(i)%vlags, &
                            varlagdist%dirs(i)%vlags, dble(idwpow), mse)
             objt = objt + mse
