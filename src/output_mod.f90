@@ -19,7 +19,7 @@ contains
       real(8), allocatable :: expvario(:), expnpoint(:)
       integer, allocatable :: expruns(:)
       integer :: cumruns(maxrun)
-      integer :: i, ic, j, k, hidx, tidx
+      integer :: i, ic, j, k, hidx, tidx, nl
 
       allocate (opt_AL(ndata, nreals), opt_AL_i(ndata, ncut, nreals))
 
@@ -116,7 +116,8 @@ contains
             do i = 1, nreals
                do ic = 1, ncut
                   do j = 1, ndir
-                     call update_vario(heads%dirs(j), tails%dirs(j), dble(opt_AL_i(:, ic, i)), expvario, 1.d0)
+                     call update_vario(heads%dirs(j), tails%dirs(j), dble(opt_AL_i(:, ic, i)), &
+                                       expvario, ivars(ic))
                      do k = 1, size(heads%dirs(j)%lags)
                         write (ltrg, "(*(g14.8,1x))") i, ic, j, varlagdist%dirs(j)%vlags(k), &
                            size(heads%dirs(j)%lags(k)%idxs), expvario(k)/ivmod(ic)%sill, &
