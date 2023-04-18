@@ -1,9 +1,10 @@
 module test_suite4
 
    use testdrive, only: new_unittest, unittest_type, error_type, check
-   use test_network_forward, only: reshape_trial_vector_to_matrices
+   use test_network_forward, only: reshape_trial_vector_to_matrices, &
+                                   calculate_forward_pass
    use types_mod, only: network
-   use network_mod, only: init_network
+   use network_mod, only: init_network, sigmoid
 
    implicit none
 
@@ -24,7 +25,9 @@ contains
                   new_unittest("test_weight_matrix_dimensions", test_weight_matrix_dimensions), &
                   new_unittest("test_bias_matrix_dimensions", test_bias_matrix_dimensions), &
                   new_unittest("test_weight_vector_to_matrices", test_weight_vector_to_matrices), &
-                  new_unittest("test_bias_vector_to_matrices", test_bias_vector_to_matrices) &
+                  new_unittest("test_bias_vector_to_matrices", test_bias_vector_to_matrices), &
+                  new_unittest("test_network_forward_pass_linear", test_network_forward_pass_linear), &
+                  new_unittest("test_network_forward_pass_sigmoid", test_network_forward_pass_sigmoid) &
                   ]
 
    end subroutine collect_suite4
@@ -148,5 +151,52 @@ contains
       end do
 
    end subroutine test_bias_vector_to_matrices
+
+   subroutine test_network_forward_pass_linear(error)
+
+      type(error_type), allocatable, intent(out) :: error
+      integer, parameter :: dims = 15, af = 4, ndata = 5, nfact = 2
+      real(8) :: diff, true(ndata), test(ndata)
+      real(8) :: vector(dims), X(ndata, nfact)
+      type(network) :: net
+      integer :: i
+
+      true = [28., 36., 44., 52., 60.]
+      vector = [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 0., 0., 0., 0., 0.]
+      X(:, 1) = [1., 2., 3., 4., 5.]
+      X(:, 2) = [6., 7., 8., 9., 10.]
+
+      call calculate_forward_pass(vector, X, af, net, test)
+
+      do i = 1, ndata
+         diff = abs(test(i) - true(i))
+         call check(error, (diff .lt. EPSLON), .true.)
+         if (allocated(error)) return
+      end do
+
+   end subroutine test_network_forward_pass_linear
+
+   subroutine test_network_forward_pass_sigmoid(error)
+
+      type(error_type), allocatable, intent(out) :: error
+      integer, parameter :: nl = 2, dims = 9, af = 1, ndata = 5, nfact = 2
+      real(8) :: diff, true(ndata), test(ndata)
+      real(8) :: vector(dims), X(ndata, nfact)
+      type(network) :: net
+      integer :: i
+
+      true = [1., 1., 1., 1., 1.]
+      vector = [1., 1., 1., 1., 1., 1., 0., 0., 0.]
+      X(:, 1) = [0.1, 0.2, 0.3, 0.4, 0.5]
+      X(:, 2) = [-0.1, -0.2, -0.3, -0.4, -0.5]
+      call calculate_forward_pass(vector, X, af, net, test)
+
+      do i = 1, ndata
+         diff = abs(test(i) - true(i))
+         call check(error, (diff .lt. EPSLON), .true.)
+         if (allocated(error)) return
+      end do
+
+   end subroutine test_network_forward_pass_sigmoid
 
 end module test_suite4

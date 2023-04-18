@@ -27,4 +27,23 @@ contains
 
    end subroutine reshape_trial_vector_to_matrices
 
+   subroutine calculate_forward_pass(vector, X, af, net, AL)
+
+      integer, parameter :: nl = 4, dims = 9
+      type(network), intent(inout) :: net
+      real(8), intent(in) :: vector(:), X(:, :)
+      integer, intent(in) :: af
+      real(8), intent(out) :: AL(:)
+
+      net%nl = nl
+      net%dims = dims
+      net%af = af
+      net%ld = [2, 2, 2, 1]
+
+      call init_network(net)
+      call vector_to_matrices(vector, net)
+      call network_forward(net, X, AL, .false.)
+
+   end subroutine calculate_forward_pass
+
 end module test_network_forward

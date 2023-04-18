@@ -2,10 +2,17 @@ module test_variograms
 
    use vario_mod
    use types_mod
+   use readpar_mod, only: readpar
 
    implicit none
 
 contains
+
+   ! subroutine parse_parameter_file()
+
+   !    call readpar
+
+   ! end subroutine parse_parameter_file
 
    subroutine get_variogram_pairs(pairs, lagbins)
 
