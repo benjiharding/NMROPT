@@ -16,10 +16,11 @@ contains
       character(256) :: cwd, dbgdir
       real(8), allocatable :: opt_AL(:, :)
       integer, allocatable :: opt_AL_i(:, :, :)
+      real(8) :: best_ivars(ncut, nreals)
       real(8), allocatable :: expvario(:), expnpoint(:)
       integer, allocatable :: expruns(:)
       integer :: cumruns(maxrun)
-      integer :: i, ic, j, k, hidx, tidx, nl
+      integer :: i, ic, j, k, hidx, tidx
 
       allocate (opt_AL(ndata, nreals), opt_AL_i(ndata, ncut, nreals))
 
@@ -28,9 +29,9 @@ contains
       do i = 1, nreals
          call network_forward(nnet, ysimd(:, :, i), opt_AL(:, i), .true.)
          call indicator_transform(opt_AL(:, i), thresholds, ndata, ncut, &
-                                  opt_AL_i(:, :, i), ivars)
+                                  opt_AL_i(:, :, i), best_ivars(:, i))
          do j = 1, ndata
-            write (lout, "(*(g14.8,1x))") opt_AL(j, i)
+            write (lout, "(*(g14.8,1x))") xyz(1, j), xyz(2, j), xyz(3, j), opt_AL(j, i)
          end do
       end do
 
@@ -117,7 +118,7 @@ contains
                do ic = 1, ncut
                   do j = 1, ndir
                      call update_vario(heads%dirs(j), tails%dirs(j), dble(opt_AL_i(:, ic, i)), &
-                                       expvario, ivars(ic))
+                                       expvario, best_ivars(ic, i))
                      do k = 1, size(heads%dirs(j)%lags)
                         write (ltrg, "(*(g14.8,1x))") i, ic, j, varlagdist%dirs(j)%vlags(k), &
                            size(heads%dirs(j)%lags(k)%idxs), expvario(k)/ivmod(ic)%sill, &
@@ -180,12 +181,14 @@ contains
          ! write out a realization if debugging, -1 for all
          if (dbgireal .gt. 0) then
             do i = 1, ndata
-               write (ldbg, "(*(g14.8,1x))") (ysimd(i, j, dbgireal), j=1, ngvarg + 1)
+               write (ldbg, "(*(g14.8,1x))") xyz(1, j), xyz(2, j), xyz(3, j), &
+                  (ysimd(i, j, dbgireal), j=1, ngvarg + 1)
             end do
          else if (dbgireal .lt. 0) then
             do i = 1, nreals
                do j = 1, ndata
-                  write (ldbg, "(*(g14.8,1x))") (ysimd(j, k, i), k=1, ngvarg + 1)
+                  write (ldbg, "(*(g14.8,1x))") xyz(1, j), xyz(2, j), xyz(3, j), &
+                     (ysimd(j, k, i), k=1, ngvarg + 1)
                end do
             end do
          end if
