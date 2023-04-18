@@ -35,6 +35,8 @@ contains
 
       ! differential evolution
 
+      integer, parameter :: maxnochange = 200
+
       ! inputs
       integer, intent(in) :: dims, popsize, its
       real(8), intent(in) :: mut, cplo, cphi, bmin, bmax
@@ -42,13 +44,13 @@ contains
       integer, optional, intent(in) :: ifunc
 
       ! local variables
-      integer :: i, j, k, cp, best_idx, idxs(3), func
+      integer :: i, j, k, best_idx, idxs(3), func, nochange
       real(8), allocatable :: pop(:, :), pop_denorm(:, :)
       real(8), allocatable :: min_b(:, :), max_b(:, :), diff(:, :)
-      real(8), allocatable :: a(:), b(:), c(:), mutant(:)
+      real(8), allocatable :: mutant(:)
       real(8), allocatable :: trial(:), trial_denorm(:), cr(:)
       real(8), allocatable :: fitness(:), fobj(:)
-      real(8) :: fit, ftry, rand(3)
+      real(8) :: fit, ftry
 
       ! interface for passing arbitrary objective functions
       if (.not. present(ifunc)) then
@@ -97,76 +99,36 @@ contains
       best_idx = minloc(fitness, dim=1)
       best = pop_denorm(:, best_idx)
 
+      nochange = 0
+
       ! main loop
       do i = 1, its
 
+         nochange = nochange + 1
+
          ! write out the current value?
-         if (.not. present(ifunc)) then
-            if (modulo(i, 100) .eq. 0) then
-               write (*, *) " working on DE iteration", i
-               if (i .gt. 1) then
-                  write (*, *) " current objective value", fobj(i - 1)/fobj(1)
-               end if
+         if (modulo(i, 100) .eq. 0) then
+            write (*, *) " working on DE iteration", i
+            if (i .gt. 1) then
+               write (*, *) " current objective value", fobj(i - 1)/fobj(1)
             end if
          end if
 
          ! crossover prob b/w cpho and cphi
-         crossp = grnd()*(cphi - cplo) + cplo
+         ! crossp = grnd()*(cphi - cplo) + cplo
+         crossp = cphi + (cplo - cphi)*(1 - i/its)**4
 
          ! loop over population and evolve
          do j = 1, popsize
 
             ! sample without replacement
-            rand = 0.d0
-            do k = 1, 3
-               rand(k) = grnd()
-            end do
-            idxs = floor(rand*popsize + 1.d0)
-
-            do while (idxs(1) .eq. j)
-               idxs(1) = floor(grnd()*popsize + 1.d0)
-            end do
-
-            do while ((idxs(2) .eq. j) .or. (idxs(2) .eq. idxs(1)))
-               idxs(2) = floor(grnd()*popsize + 1.d0)
-            end do
-
-            do while ((idxs(3) .eq. j) .or. (idxs(3) .eq. idxs(1)) &
-                      .or. (idxs(3) .eq. idxs(2)))
-               idxs(3) = floor(grnd()*popsize + 1.d0)
-            end do
+            idxs = random_sample(popsize, j)
 
             ! mutuate the selected vectors
-            a = pop(:, idxs(1))
-            b = pop(:, idxs(2))
-            c = pop(:, idxs(3))
-            mutant = a + mut*(b - c)
+            mutant = rand1_mutation(idxs, dims, pop, mut)
 
-            ! clip it between [0, 1]
-            mutant = min(max(mutant, 0.d0), 1.d0)
-
-            ! crossover probability
-            do k = 1, dims
-               cr(k) = grnd()
-            end do
-
-            ! get the trial vector
-            cp = 0
-            do k = 1, dims
-               if (cr(k) .lt. crossp) then
-                  trial(k) = mutant(k)
-                  cp = cp + 1
-               else
-                  trial(k) = pop(k, j)
-               end if
-            end do
-
-            ! if nothing is less than CR, take a random sample
-            if (cp .eq. 0) then
-               do k = 1, dims
-                  trial(k) = pop(1 + int(popsize*grnd()), j)
-               end do
-            end if
+            ! crossover and get the trial vector
+            trial = crossover(mutant, crossp, pop(:, j), dims)
 
             ! denormalize the trial and evaluate
             ftry = 0.d0
@@ -183,6 +145,7 @@ contains
                if (ftry .lt. fitness(best_idx)) then
                   best_idx = j
                   best = trial_denorm
+                  nochange = 0
                end if
             end if
 
@@ -191,17 +154,115 @@ contains
          ! store this iterations best value
          fobj(i) = fitness(best_idx)
 
+         ! have we reached the nochange threshold?
+         if (nochange .gt. maxnochange) then
+
+            write (*, *) " random restart on iteration", i
+
+            ! randomly mutate the population
+            do k = 1, popsize
+
+               ! exclude the current best from mutation
+               if (k .eq. best_idx) cycle
+
+               idxs = random_sample(popsize, k)
+               mutant = rand1_mutation(idxs, dims, pop, mut)
+               pop(:, k) = crossover(mutant, crossp, pop(:, k), dims)
+
+            end do
+
+            nochange = 0
+
+         end if
+
          if (.not. present(ifunc)) then
             ! write out the values
             write (lobj, "(1(i0,1x),1(g14.8,1x))") i, fobj(i)/fobj(1)
          end if
 
          ! are we done early?
-         if (fobj(i) .le. 0.0000000000000001D0) exit
+         if (fobj(i) .le. 1e-10) return
 
       end do
 
    end subroutine de
+
+   function random_sample(popsz, target) result(idxs)
+
+      integer, intent(in) :: popsz, target
+      integer :: idxs(3)
+      real(8) :: rand(3)
+      integer :: i
+
+      rand = 0.d0
+      do i = 1, 3
+         rand(i) = grnd()
+      end do
+      idxs = floor(rand*popsz + 1.d0)
+
+      do while (idxs(1) .eq. target)
+         idxs(1) = floor(grnd()*popsz + 1.d0)
+      end do
+
+      do while ((idxs(2) .eq. target) .or. (idxs(2) .eq. idxs(1)))
+         idxs(2) = floor(grnd()*popsz + 1.d0)
+      end do
+
+      do while ((idxs(3) .eq. target) .or. (idxs(3) .eq. idxs(1)) &
+                .or. (idxs(3) .eq. idxs(2)))
+         idxs(3) = floor(grnd()*popsz + 1.d0)
+      end do
+
+   end function random_sample
+
+   function rand1_mutation(idxs, dims, population, f) result(xmut)
+
+      integer, intent(in) :: idxs(:), dims
+      real(8), intent(in) :: population(:, :)
+      real(8) :: a(dims), b(dims), c(dims), xmut(dims), f
+
+      a = population(:, idxs(1))
+      b = population(:, idxs(2))
+      c = population(:, idxs(3))
+
+      xmut = a + f*(b - c)
+
+      ! clip it between [0, 1]
+      xmut = min(max(xmut, 0.d0), 1.d0)
+
+   end function rand1_mutation
+
+   function crossover(xmut, crsp, target_vect, dims) result(xtrial)
+
+      real(8), intent(in) :: xmut(:), target_vect(:), crsp
+      integer, intent(in) :: dims
+      real(8) :: xtrial(dims), cr(dims)
+      integer :: i, cp
+
+      ! crossover probability
+      do i = 1, dims
+         cr(i) = grnd()
+      end do
+
+      ! get the trial vector
+      cp = 0
+      do i = 1, dims
+         if (cr(i) .lt. crsp) then
+            xtrial(i) = xmut(i)
+            cp = cp + 1
+         else
+            xtrial(i) = target_vect(i)
+         end if
+      end do
+
+      ! if nothing is less than CR, take a random sample
+      if (cp .eq. 0) then
+         do i = 1, dims
+            xtrial(i) = target_vect(1 + int(popsize*grnd()))
+         end do
+      end if
+
+   end function crossover
 
    !
    ! unit testing purposes
