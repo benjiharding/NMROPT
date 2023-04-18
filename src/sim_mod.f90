@@ -47,6 +47,9 @@ contains
       end do
 
       ! nugget effect
+
+      write (*, *) "working on factor", ngvarg + 1
+
       do ireal = 1, nreals
 
          do i = 1, ndata
@@ -247,6 +250,10 @@ contains
       ! initialize matrices
       C11 = 0.0
       L11 = 0.0
+
+      if (.not. allocated(pool(igv)%rm)) then
+         call set_rotmatrix(pool)
+      end if
 
       ! compute C11
       do i = 1, ndata
