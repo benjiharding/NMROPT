@@ -64,34 +64,18 @@ contains
          net%layer(i)%sw = [net%ld(i + 1), net%ld(i)] ! weight matrix shape
          net%layer(i)%sb = [net%ld(i + 1), 1] ! bias vector shape
          ! allocate
-         allocate (net%layer(i)%nnwts(net%ld(i + 1), net%ld(i)))
-         allocate (net%layer(i)%nnbias(net%ld(i + 1), 1))
+         allocate (net%layer(i)%nnwts(net%layer(i)%sw(1), net%layer(i)%sw(2)))
+         allocate (net%layer(i)%nnbias(net%layer(i)%sb(1), net%layer(i)%sb(1)))
       end do
 
       ! total number of dimensions
       net%dims = sum(nwts) + sum(nbias)
 
+      ! test some default regularization
+      net%ireg = 1
+      net%regconst = 0.1
+
    end subroutine init_network
-
-   subroutine vector_to_matrices(vector, net)
-
-      ! reshape trial vector (DE output) to neural network weight matrices
-      ! this subroutine updates the inupt type(network) object
-
-      type(network), intent(inout) :: net
-      real(8), intent(in) :: vector(:)
-      integer :: i
-
-      do i = 1, net%nl - 1
-
-         ! reshape weights and biases
-         net%layer(i)%nnwts = reshape(vector(net%iwts(i) + 1:net%iwts(i + 1)), &
-                                      shape=(net%layer(i)%sw), order=[2, 1])
-         net%layer(i)%nnbias = reshape(vector(net%ibias(i) + 1:net%ibias(i + 1)), &
-                                       shape=(net%layer(i)%sb), order=[2, 1])
-      end do
-
-   end subroutine vector_to_matrices
 
    subroutine network_forward(net, Ymat, AL, nstrans)
 
@@ -124,28 +108,29 @@ contains
       Amat = Ymat
 
       ! pointer to activation function
-      if (net%af .eq. 1) then
+      select case (net%af)
+      case (1)
          f_ptr => sigmoid
-      else if (net%af .eq. 2) then
+      case (2)
          f_ptr => hyptan
-      else if (net%af .eq. 3) then
+      case (3)
          f_ptr => relu
-      else if (net%af .eq. 4) then
+      case (4)
          f_ptr => linear
-      end if
+      case (5)
+         f_ptr => silu
+      case (6)
+         f_ptr => gelu
+      end select
 
       ! hidden layers
       do i = 1, net%nl - 2 ! excludes input and output
 
          A_prev = Amat
 
-         ! reshape weights and biases
-         W = net%layer(i)%nnwts
-         b = net%layer(i)%nnbias
-
          ! transpose prior to forward pass
-         W = transpose(W)
-         b = transpose(b)
+         W = transpose(net%layer(i)%nnwts)
+         b = transpose(net%layer(i)%nnbias)
 
          ! forward pass
          b = spread(b(1, :), 1, size(A_prev, dim=1))
@@ -155,13 +140,9 @@ contains
       end do
 
       ! output layer
-      WL = net%layer(net%nl - 1)%nnwts
-      WL = transpose(WL)
-
-      bL = net%layer(net%nl - 1)%nnbias
-      bL = transpose(bL)
+      WL = transpose(net%layer(net%nl - 1)%nnwts)
+      bL = transpose(net%layer(net%nl - 1)%nnbias)
       bL = spread(bL(1, :), 1, size(Amat, dim=1))
-
       ZL = matmul(Amat, WL) + bL
 
       ! linear activation and reduce dims
@@ -176,16 +157,49 @@ contains
 
    end subroutine network_forward
 
-   subroutine print_matrix(A)
-      real(8), intent(in) :: A(:, :)  ! An assumed-shape dummy argument
+   subroutine vector_to_matrices(vector, net)
 
+      ! reshape trial vector (DE output) to neural network weight matrices
+      ! this subroutine updates the inupt type(network) object
+
+      type(network), intent(inout) :: net
+      real(8), intent(in) :: vector(:)
       integer :: i
 
-      do i = 1, size(A, 1)
-         print *, A(i, :)
+      do i = 1, net%nl - 1
+
+         ! reshape weights and biases
+         net%layer(i)%nnwts = reshape(vector(net%iwts(i) + 1:net%iwts(i + 1)), &
+                                      shape=(net%layer(i)%sw), order=[2, 1])
+         net%layer(i)%nnbias = reshape(vector(net%ibias(i) + 1:net%ibias(i + 1)), &
+                                       shape=(net%layer(i)%sb), order=[2, 1])
       end do
 
-   end subroutine print_matrix
+   end subroutine vector_to_matrices
+
+   subroutine calc_regularization(net, reg)
+
+      type(network), intent(inout) :: net
+      real(8), intent(out) :: reg
+      integer :: i
+
+      reg = 0.d0
+
+      do i = 1, net%nl - 1
+
+         if (net%ireg .eq. 0) then
+            reg = reg + 0.d0
+
+         else if (net%ireg .eq. 1) then ! L1
+            reg = reg + sum(abs(net%layer(i)%nnwts))*net%regconst
+
+         else if (net%ireg .eq. 2) then ! L2
+            reg = reg + sum(net%layer(i)%nnwts**2)*net%regconst
+         end if
+
+      end do
+
+   end subroutine calc_regularization
 
    function relu(yval) result(a)
 
@@ -197,6 +211,28 @@ contains
       a = max(0.d0, yval)
 
    end function relu
+
+   function silu(yval) result(a)
+
+      ! sigmoid lienar unit activation
+
+      real(8), intent(in) :: yval(:, :)
+      real(8) :: a(size(yval, 1), size(yval, 2))
+
+      a = yval*sigmoid(yval)
+
+   end function silu
+
+   function gelu(yval) result(a)
+
+      ! sigmoid lienar unit activation
+
+      real(8), intent(in) :: yval(:, :)
+      real(8) :: a(size(yval, 1), size(yval, 2))
+
+      a = yval*sigmoid(1.702*yval)
+
+   end function gelu
 
    function sigmoid(yval) result(a)
 
