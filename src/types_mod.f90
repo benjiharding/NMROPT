@@ -39,6 +39,8 @@ module types_mod
       integer, allocatable :: iwts(:), ibias(:) ! vector indices
       integer :: af ! activation function
       integer :: dims ! total number of weights + biases
+      integer :: ireg ! regularizer (0=none, 1=L1, 2=L2)
+      real(8) :: regconst ! regularization constant
    end type network
 
    ! ragged arrays for lag data
