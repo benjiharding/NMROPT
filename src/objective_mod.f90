@@ -4,7 +4,8 @@ module objective_mod
    use sequences_mod, only: binary_runs, npoint_connect
    use vario_mod, only: update_vario, vario_mse, indicator_transform, &
                         vario_pairs, varmodelpts, set_sill, calc_expsill
-   use network_mod, only: network_forward, vector_to_matrices
+   use network_mod, only: network_forward, vector_to_matrices, &
+                          calc_regularization
    use mtmod
    use subs
    use constants
@@ -101,12 +102,6 @@ contains
 
             allocate (target_ivario%cuts(j)%dirs(ndir))
 
-            ! ! rescale sill parameters
-            ! ivmod(j)%c0 = ivmod(j)%c0*ivars(j)
-            ! do i = 1, ivmod(j)%nst
-            !    ivmod(j)%cc(i) = ivmod(j)%cc(i)*ivars(j)
-            ! end do
-
             ! calculate the model points
             do k = 1, ndir
                maxlags = size(varlagdist%dirs(k)%vlags)
@@ -119,7 +114,7 @@ contains
                                 target_ivario%cuts(j)%dirs(k)%vlags)
             end do
          end do
-         ! call set_sill(ivmod)
+
       end if
 
       ! cumulative runs target
@@ -274,6 +269,7 @@ contains
 
       real(8), intent(in) :: v(:) ! trial vector
       real(8), intent(out) :: gobjt ! global temp obj value
+      real(8) :: reg
       integer :: ireal
 
       gobjt = 0.d0
@@ -284,6 +280,9 @@ contains
 
       ! get matrices for this trial vector
       call vector_to_matrices(v, nnet)
+
+      ! calculate regularization values if required
+      call calc_regularization(nnet, reg)
 
       do ireal = 1, nreals
 
@@ -300,7 +299,7 @@ contains
 
       end do
 
-      gobjt = gobjt/nreals
+      gobjt = gobjt/nreals + reg
 
    end subroutine obj_nmr
 
@@ -373,7 +372,7 @@ contains
             call binary_runs(iarr, maxrun, expruns)
             cumruns = cumruns + expruns
          end do
-         mse = sum((dble(target_runs(:, i)) - dble(cumruns))**2)/dble(maxrun)
+         mse = sum((dble(target_runs(:, i)) - dble(cumruns))**2)!/dble(maxrun)
          objt = objt + mse
       end do
 
@@ -396,7 +395,7 @@ contains
 
       do i = 1, ncut
          call npoint_connect(AL_i(:, i), nstep, ndh, udhidx, phi_n)
-         mse = sum((target_npoint(:, i) - phi_n)**2)/dble(nstep)
+         mse = sum((target_npoint(:, i) - phi_n)**2)!/dble(nstep)
          objt = objt + mse
       end do
 
