@@ -24,7 +24,7 @@ contains
 
       ! local variables
       integer :: i, j
-      real(8) :: mu
+      real(8) :: prop
 
       ! initalize indicators
       iz = 0
@@ -40,12 +40,12 @@ contains
 
       ! indicator variance to scale sill
       do j = 1, ncut
-         mu = 0.d0
+         prop = 0.d0
          do i = 1, nd
-            mu = mu + iz(i, j)
+            prop = prop + iz(i, j)
          end do
-         mu = mu/nd
-         ivars(j) = mu*(1 - mu)
+         prop = prop/nd
+         ivars(j) = prop*(1 - prop)
       end do
 
    end subroutine indicator_transform
@@ -77,6 +77,13 @@ contains
       end do
 
       expvario = 0.5d0*expvario
+
+      do i = 1, nl
+         if (expvario(i) .gt. sill) then
+            expvario(i) = sill
+         end if
+      end do
+
       expvario = expvario/sill
 
    end subroutine update_vario
@@ -129,7 +136,7 @@ contains
       idw_wts = inv_dist(varlagdist, idwpow, nlags)
 
       ! get the weighted MSE
-      mse = sum(idw_wts*(varmodelvals - expvario)**2)/dble(nlags)
+      mse = sum(idw_wts*(varmodelvals - expvario)**2)!/dble(nlags)
       ! mse = 1.d0/dble(nlags)*mse/sum(idw_wts)
 
    end subroutine vario_mse
