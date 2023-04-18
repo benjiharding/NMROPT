@@ -30,7 +30,6 @@ contains
       real(8) :: xmn, ymn, zmn
       real(8) :: xsiz, ysiz, zsiz
       integer :: nxyz
-      integer :: nnl
       real(8), allocatable :: tmpvar(:)
 
       ! unit numbers
@@ -164,9 +163,12 @@ contains
 
       ! open the output file and write headers
       open (lout, file=outfile, status="UNKNOWN")
-      write (lout, "(a15)") "Network Mixture"
-      write (lout, "(i1)") 1
-      write (lout, "(a9)") "nmr value"
+      write (lout, "(A)") "Network Mixture"
+      write (lout, "(i1)") 4
+      write (lout, "(A)") "x"
+      write (lout, "(A)") "y"
+      write (lout, "(A)") "z"
+      write (lout, "(A)") "nmr value"
 
       ! network weights
       read (lin, '(a256)', iostat=test) wtsfile
@@ -488,8 +490,11 @@ contains
 
       ! write out headers if debugging
       if (idbg .gt. 0) then
-         write (ldbg, "(a22)") "Debugging realizations"
-         write (ldbg, "(i2)") ngvarg + 1
+         write (ldbg, "(A)") "Debugging realizations"
+         write (ldbg, "(i2)") ngvarg + 1 + 3 ! + nugget + coords
+         write (ldbg, "(A)") "x"
+         write (ldbg, "(A)") "y"
+         write (ldbg, "(A)") "z"
          do iv = 1, ngvarg + 1
             write (ldbg, "(a6, i3)") "Factor", iv
          end do
