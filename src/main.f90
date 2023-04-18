@@ -27,7 +27,7 @@ program main
    ! minimize the objective
    call optimize
 
-   ! write files
+   ! write output files
    call write_files
 
    ! close all output files
