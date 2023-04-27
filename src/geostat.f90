@@ -15,8 +15,8 @@ module geostat
    integer, allocatable :: AL_i(:, :) ! indicator transform of AL (nd, ncut)
 
    ! objective function targets
-   type(vario_array) :: target_vario ! (ndir*nlags)
-   type(ivario_array) :: target_ivario ! (ncut, ndir*nlags)
+   type(vario_array) :: target_vario
+   type(ivario_array) :: target_ivario
    integer, allocatable :: target_runs(:, :) ! (ncut, maxrun)
    real(8), allocatable :: target_npoint(:, :) ! (ncut, nstep)
 
@@ -99,7 +99,7 @@ module geostat
    !
    ! DE module
    !
-   real(8) :: mut, cplo, cphi, crossp
+   real(8) :: mut, cplo, cphi
    integer :: popsize, its
    real(8), allocatable :: best(:)
 
