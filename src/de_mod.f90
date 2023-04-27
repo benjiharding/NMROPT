@@ -1,11 +1,10 @@
 module de_mod
 
-   use geostat, only: mut, cplo, cphi, crossp, popsize, its, best, &
+   use geostat, only: mut, cplo, cphi, popsize, its, best, &
                       bmin, bmax, lobj, nnet
    use objective_mod, only: obj_nmr
    use types_mod
    use mtmod
-   use subs
    use constants
 
    implicit none
@@ -48,9 +47,9 @@ contains
       real(8), allocatable :: pop(:, :), pop_denorm(:, :)
       real(8), allocatable :: min_b(:, :), max_b(:, :), diff(:, :)
       real(8), allocatable :: mutant(:)
-      real(8), allocatable :: trial(:), trial_denorm(:), cr(:)
+      real(8), allocatable :: trial(:), trial_denorm(:)
       real(8), allocatable :: fitness(:), fobj(:)
-      real(8) :: fit, ftry
+      real(8) :: fit, ftry, crossp
 
       ! interface for passing arbitrary objective functions
       if (.not. present(ifunc)) then
@@ -68,7 +67,6 @@ contains
 
       ! allocate the trial vectors
       allocate (trial(dims))
-      allocate (cr(dims))
 
       ! allocate objective counter
       allocate (fobj(its))
@@ -90,8 +88,6 @@ contains
       allocate (fitness(popsize))
       fitness = 0.d0
       do i = 1, popsize
-         ! call obj_nmr(pop_denorm(:, i), fit)
-         ! fitness(i) = fit
          fitness(i) = objfunc(pop_denorm(:, i), func)
       end do
 
@@ -116,16 +112,17 @@ contains
 
          ! crossover prob b/w cpho and cphi
          ! crossp = grnd()*(cphi - cplo) + cplo
-         crossp = cphi + (cplo - cphi)*(1 - i/its)**4
+         crossp = cphi + (cplo - cphi)*(1 - dble(i)/dble(its))**4
 
          ! loop over population and evolve
          do j = 1, popsize
 
-            ! sample without replacement
-            idxs = random_sample(popsize, j)
+            ! select candidates for mutation
+            idxs = selection(popsize, j)
 
             ! mutuate the selected vectors
-            mutant = rand1_mutation(idxs, dims, pop, mut)
+            ! mutant = rand1_mutation(idxs, dims, pop, mut)
+            mutant = c2b1_mutation(idxs, best_idx, j, dims, pop, mut, mut)
 
             ! crossover and get the trial vector
             trial = crossover(mutant, crossp, pop(:, j), dims)
@@ -133,13 +130,13 @@ contains
             ! denormalize the trial and evaluate
             ftry = 0.d0
             trial_denorm = min_b(:, 1) + trial*diff(:, 1)
-            ! call obj_nmr(trial_denorm, ftry)
             ftry = objfunc(trial_denorm, func)
 
             ! did we improve?
             if (ftry .lt. fitness(j)) then
                fitness(j) = ftry
                pop(:, j) = trial
+               pop_denorm(:, j) = trial_denorm
 
                ! do we need to update the global best?
                if (ftry .lt. fitness(best_idx)) then
@@ -164,9 +161,9 @@ contains
 
                ! exclude the current best from mutation
                if (k .eq. best_idx) cycle
-
-               idxs = random_sample(popsize, k)
-               mutant = rand1_mutation(idxs, dims, pop, mut)
+               idxs = selection(popsize, k)
+               ! mutant = rand1_mutation(idxs, dims, pop, mut)
+               mutant = c2b1_mutation(idxs, best_idx, j, dims, pop, mut, mut)
                pop(:, k) = crossover(mutant, crossp, pop(:, k), dims)
 
             end do
@@ -177,7 +174,9 @@ contains
 
          if (.not. present(ifunc)) then
             ! write out the values
-            write (lobj, "(1(i0,1x),1(g14.8,1x))") i, fobj(i)/fobj(1)
+            ! write (lobj, "(1(i0,1x),1(g14.8,1x))") i, fobj(i)/fobj(1)
+            write (lobj, "(1(i0,1x),*(g14.8,1x))") i, fobj(i)/fobj(1), &
+               pop_denorm(1, 1), pop_denorm(2, 1), fitness(1), crossp, mut
          end if
 
          ! are we done early?
@@ -187,13 +186,14 @@ contains
 
    end subroutine de
 
-   function random_sample(popsz, target) result(idxs)
+   function selection(popsz, target) result(idxs)
 
       integer, intent(in) :: popsz, target
       integer :: idxs(3)
       real(8) :: rand(3)
       integer :: i
 
+      ! three random idxs that != target
       rand = 0.d0
       do i = 1, 3
          rand(i) = grnd()
@@ -213,9 +213,11 @@ contains
          idxs(3) = floor(grnd()*popsz + 1.d0)
       end do
 
-   end function random_sample
+   end function selection
 
    function rand1_mutation(idxs, dims, population, f) result(xmut)
+
+      ! DE/rand/1
 
       integer, intent(in) :: idxs(:), dims
       real(8), intent(in) :: population(:, :)
@@ -232,35 +234,51 @@ contains
 
    end function rand1_mutation
 
-   function crossover(xmut, crsp, target_vect, dims) result(xtrial)
+   function c2b1_mutation(idxs, best_idx, curr_idx, dims, population, f1, f2) &
+      result(xmut)
 
-      real(8), intent(in) :: xmut(:), target_vect(:), crsp
+      ! DE/current-to-best/1
+
+      integer, intent(in) :: idxs(:), best_idx, curr_idx, dims
+      real(8), intent(in) :: population(:, :)
+      real(8) :: a(dims), b(dims)
+      real(8) :: xmut(dims), xcurr(dims), xbest(dims), f1, f2
+
+      a = population(:, idxs(1))
+      b = population(:, idxs(2))
+      xcurr = population(:, curr_idx)
+      xbest = population(:, best_idx)
+
+      xmut = xcurr + f1*(xbest - xcurr) + f2*(a - b)
+
+      ! clip it between [0, 1]
+      xmut = min(max(xmut, 0.d0), 1.d0)
+
+   end function c2b1_mutation
+
+   function crossover(xmut, cp, xtarget, dims) result(xtrial)
+
+      real(8), intent(in) :: xmut(:), xtarget(:), cp
       integer, intent(in) :: dims
       real(8) :: xtrial(dims), cr(dims)
-      integer :: i, cp
+      integer :: i, irand
 
       ! crossover probability
       do i = 1, dims
          cr(i) = grnd()
       end do
 
+      ! random index to prevent copying target completely
+      irand = floor(grnd()*dims + 1.d0)
+
       ! get the trial vector
-      cp = 0
       do i = 1, dims
-         if (cr(i) .lt. crsp) then
+         if ((cr(i) .lt. cp) .or. (irand .eq. i)) then
             xtrial(i) = xmut(i)
-            cp = cp + 1
          else
-            xtrial(i) = target_vect(i)
+            xtrial(i) = xtarget(i)
          end if
       end do
-
-      ! if nothing is less than CR, take a random sample
-      if (cp .eq. 0) then
-         do i = 1, dims
-            xtrial(i) = target_vect(1 + int(popsize*grnd()))
-         end do
-      end if
 
    end function crossover
 
