@@ -114,7 +114,6 @@ contains
                                 target_ivario%cuts(j)%dirs(k)%vlags)
             end do
          end do
-
       end if
 
       ! cumulative runs target
@@ -144,7 +143,7 @@ contains
       write (*, *) " "
       write (*, *) "Scaling objective components..."
 
-      call obj_scale
+      call obj_scale()
 
       write (*, "(A*(g14.8,1x))") "Variogram component: ", objscale(1)
       write (*, "(A*(g14.8,1x))") "Indicator variogram component: ", objscale(2)
