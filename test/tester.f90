@@ -6,6 +6,7 @@ program tester
    use test_suite2, only: collect_suite2
    use test_suite3, only: collect_suite3
    use test_suite4, only: collect_suite4
+   use test_suite5, only: collect_suite5
 
    implicit none
 
@@ -19,7 +20,8 @@ program tester
                 new_testsuite("variogram suite", collect_suite1), &
                 new_testsuite("optimization suite", collect_suite2), &
                 new_testsuite("kriging suite", collect_suite3), &
-                new_testsuite("network suite", collect_suite4) &
+                new_testsuite("network suite", collect_suite4), &
+                new_testsuite("subroutine suite", collect_suite5) &
                 ]
 
    do is = 1, size(testsuites)

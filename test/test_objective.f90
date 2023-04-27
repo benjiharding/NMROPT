@@ -31,8 +31,8 @@ contains
       call init_objective
 
       ! calc the objective value given intialization and input vector
-      call obj_nmr(vector1, obj1)
       call obj_nmr(vector2, obj2)
+      call obj_nmr(vector1, obj1)
 
       ! write output files
       allocate (best(size(vector1)))

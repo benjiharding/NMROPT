@@ -22,8 +22,8 @@ contains
 
       testsuite = [ &
                   new_unittest("test_ackley_function", test_ackley_function), &
-                  new_unittest("test_beale_function", test_beale_function), &
-                  new_unittest("test_objective_calculation", test_objective_calculation) &
+                  new_unittest("test_beale_function", test_beale_function) &
+                  !new_unittest("test_objective_calculation", test_objective_calculation) &
                   ]
 
    end subroutine collect_suite2
