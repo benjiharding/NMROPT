@@ -117,7 +117,7 @@ contains
       ! Weighted MSE between experimental points and variogram model
 
       ! parameters
-      real(8), intent(inout) :: expvario(:)
+      real(8), intent(in) :: expvario(:)
       real(8), intent(in) :: varmodelvals(:), varlagdist(:)
       real(8), intent(in) :: idwpow
 
