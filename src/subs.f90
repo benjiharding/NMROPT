@@ -48,13 +48,14 @@ contains
       !
       !
       !-----------------------------------------------------------------------
-      real(8) :: vr(nd), wt(nd)
+      real(8), intent(in) :: vr(nd), wt(nd)
       real(8), allocatable :: vrg(:), tmp(:)
-      real(8) :: twt, oldcp, cp
+      real(8) :: twt, cumwt(nd), oldcp, cp
       real(8) :: tmin, tmax
       integer :: i, iwt, ierr, ierror, nd
 
       allocate (vrg(nd), tmp(nd))
+      cumwt = wt
 
       !
       ! Sort the data in ascending order and calculate total weight:
@@ -75,7 +76,7 @@ contains
          ierror = 1
          return
       end if
-      call sortem(1, nd, vr, 2, wt, tmp, vr, vr, vr, vr, vr, vr)
+      call sortem(1, nd, vr, 2, cumwt, tmp, vr, vr, vr, vr, vr, vr)
       !
       ! Compute the cumulative probabilities:
       !
@@ -83,14 +84,14 @@ contains
       cp = 0.d0
       do i = 1, nd
          cp = cp + wt(i)/twt
-         wt(i) = (cp + oldcp)/2.0
+         cumwt(i) = (cp + oldcp)/2.0
          oldcp = cp
-         call gauinv(dble(wt(i)), vrg(i), ierr)
+         call gauinv(dble(cumwt(i)), vrg(i), ierr)
       end do
       !
       ! Get the arrays back in original order:
       !
-      call sortem(1, nd, tmp, 3, wt, vr, vrg, vr, vr, vr, vr, vr)
+      call sortem(1, nd, tmp, 3, cumwt, vr, vrg, vr, vr, vr, vr, vr)
       !
       ! Finished:
       !
