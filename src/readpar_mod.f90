@@ -13,6 +13,7 @@ module readpar_mod
    character(256) :: dbgfile
    character(256) :: wtsfile
    character(256) :: objfile
+   character(256) :: prefix
 
 contains
 
@@ -96,7 +97,7 @@ contains
       if (test .ne. 0) stop "ERROR in parameter file"
       write (*, "(a,6(i0,x))") '  column for dhid, x, y, z, var and wt: ', dhcol, xyzcols, varcol, wtcol
       if (dhcol .le. 0) then
-         write (*, *) "ERROR: Column for dhid must be > 0. Drill hole IDs are required for computations."
+         write (*, *) "ERROR: Column for dhid must be > 0. Drill hole IDs are required for sequences."
          stop
       end if
 
@@ -164,7 +165,8 @@ contains
       ! open the output file and write headers
       open (lout, file=outfile, status="UNKNOWN")
       write (lout, "(A)") "Network Mixture"
-      write (lout, "(i1)") 4
+      write (lout, "(i1)") 5
+      write (lout, "(A)") "dhid"
       write (lout, "(A)") "x"
       write (lout, "(A)") "y"
       write (lout, "(A)") "z"
@@ -190,28 +192,43 @@ contains
 
       ! open the objective file and write headers
       open (lobj, file=objfile, status="UNKNOWN")
-      write (lobj, "(a22)") "NMR Objective Function"
-      write (lobj, "(i1)") 2
-      write (lobj, "(a9)") "iteration"
-      write (lobj, "(a15)") "objective value"
+      write (lobj, "(A)") "NMR Objective Function"
+      write (lobj, "(i1)") 7
+      write (lobj, "(A)") "Iteration"
+      write (lobj, "(A)") "Objective value"
+      write (lobj, "(A)") "x1"
+      write (lobj, "(A)") "x2"
+      write (lobj, "(A)") "Fitness history"
+      write (lobj, "(A)") "Crossover prob."
+      write (lobj, "(A)") "Mutation factor"
+
+      ! prefix for target/exp values
+      read (lin, '(a256)', iostat=test) prefix
+      if (test .ne. 0) stop "ERROR in parameter file"
+      call chknam(prefix, 256)
+      write (*, "(2a)") '  output prefix: ', trim(adjustl(prefix))
 
       ! network architecture
-      read (lin, *, iostat=test) nnet%nl !nnl
+      read (lin, *, iostat=test) nnet%nl
       if (test .ne. 0) stop "ERROR in parameter file"
-      write (*, *) ' number of network layers: ', nnet%nl !nnl
+      write (*, *) ' number of network layers: ', nnet%nl
 
-      ! allocate (layer_dims(nnl), stat=test)
       allocate (nnet%ld(nnet%nl), stat=test)
       if (test .ne. 0) stop "allocation failed due to insufficient memory!"
 
-      read (lin, *, iostat=test) nnet%ld !layer_dims
+      read (lin, *, iostat=test) nnet%ld
       if (test .ne. 0) stop "ERROR in parameter file"
-      write (*, "(a,10(i0,x))") '  network layer dimensions: ', nnet%ld !layer_dims
+      write (*, "(a,10(i0,x))") '  network layer dimensions: ', nnet%ld
 
       ! activation function
-      read (lin, *, iostat=test) nnet%af !af
+      read (lin, *, iostat=test) nnet%af
       if (test .ne. 0) stop "ERROR in parameter file"
-      write (*, "(a,10(i0,x))") '  activation function: ', nnet%af !af
+      write (*, "(a,10(i0,x))") '  activation function: ', nnet%af
+
+      ! regularization
+      read (lin, *, iostat=test) nnet%ireg, nnet%regconst
+      if (test .ne. 0) stop "ERROR in parameter file"
+      write (*, *) '  regularization and constant: ', nnet%ireg, nnet%regconst
 
       ! Gaussian pool file
       read (lin, '(a256)', iostat=test) poolfile
