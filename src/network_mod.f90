@@ -71,10 +71,6 @@ contains
       ! total number of dimensions
       net%dims = sum(nwts) + sum(nbias)
 
-      ! test some default regularization
-      net%ireg = 1
-      net%regconst = 0.1
-
    end subroutine init_network
 
    subroutine network_forward(net, Ymat, AL, nstrans)
@@ -105,6 +101,7 @@ contains
       real(8), allocatable :: vrg(:), tmp(:)
       integer :: i, ierr
 
+      ! initialize the activation matrix
       Amat = Ymat
 
       ! pointer to activation function
@@ -152,6 +149,7 @@ contains
       if (nstrans) then
          call nscore(size(AL), AL, dble(-1.0e21), dble(1.0e21), 1, &
                      wts, tmp, vrg, ierr)
+         if (ierr .gt. 0) stop "Error in normal score transform"
          AL = vrg
       end if
 
