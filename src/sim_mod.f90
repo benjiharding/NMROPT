@@ -117,7 +117,7 @@ contains
          anisxyz(:, i) = matmul(pool(igv)%rm(:, :, nst), xyz(:, i))
       end do
 
-      ! build the search tree
+      ! build the anisotropic search tree
       tree => kdtree2_create(input_data=anisxyz, dim=3, sort=.true., rearrange=.true.)
 
       ! main loop over realizations
@@ -143,7 +143,7 @@ contains
                                    nfound=nfound, nalloc=ndata, results=results)
 
             ! loop over samples found in search
-            nuse(i) = 0
+            nuse(simidx) = 0
             do j = 1, nfound
 
                ! check if this data index is the simulation index
@@ -153,22 +153,23 @@ contains
                if (isim(results(j)%idx) .eq. 0) cycle ! no conditioning value here
 
                ! meet minimum covariance? (not collocated)
-               rhs(1) = get_cov(pool(igv), anisxyz(:, simidx), anisxyz(:, results(j)%idx))
+               rhs(1) = get_cov(pool(igv), xyz(:, simidx), xyz(:, results(j)%idx))
                if (rhs(1) .lt. MINCOV) cycle
 
-               ! if we got this far increment number found at ith location
-               nuse(i) = nuse(i) + 1
-               ! track data indices found at ith location
-               useidx(nuse(i), i) = results(j)%idx
+               ! if we got this far increment number found at ith data location
+               nuse(simidx) = nuse(simidx) + 1
+
+               ! track conditioning indices found at ith data location
+               useidx(nuse(simidx), simidx) = results(j)%idx
 
                ! have we met the max search?
-               if (nuse(i) .ge. nsearch) exit
+               if (nuse(simidx) .ge. nsearch) exit
 
             end do
 
             ! calculate matrices for normal equations
-            if (nuse(i) .gt. 0) then
-               call krige(i, pool(igv), anisxyz, rhs, lhs, kwts, nuse, useidx, &
+            if (nuse(simidx) .gt. 0) then
+               call krige(pool(igv), xyz, rhs, lhs, kwts, nuse, useidx, &
                           sim, simidx, cmean, cstdev)
             else
                ! if no data the distribution is N(0,1)
@@ -193,29 +194,30 @@ contains
 
    end subroutine sequential_sim
 
-   subroutine krige(i, vm, anisxyz, rhs, lhs, kwts, nuse, useidx, &
+   subroutine krige(vm, coords, rhs, lhs, kwts, nuse, useidx, &
                     sim, simidx, cmean, cstdev)
 
       ! simple kriging conditional mean and variance
 
-      integer, intent(in) :: i, nuse(:), useidx(:, :), simidx
-      real(8), intent(in) :: anisxyz(:, :), sim(:)
+      integer, intent(in) :: nuse(:), useidx(:, :), simidx
+      real(8), intent(in) :: coords(:, :), sim(:)
       type(variogram) :: vm
       real(8), intent(inout) :: rhs(:), lhs(:, :), kwts(:)
       real(8), intent(out) :: cmean, cstdev
       integer :: j, k, test
 
       ! calculate matrices for normal equations
-      do j = 1, nuse(i)
+      do j = 1, nuse(simidx)
          ! build rhs vector
-         rhs(j) = get_cov(vm, anisxyz(:, simidx), anisxyz(:, useidx(j, i)))
-         do k = j, nuse(i)
+         rhs(j) = get_cov(vm, coords(:, simidx), coords(:, useidx(j, simidx)))
+         do k = j, nuse(simidx)
             ! diagonal
             if (j .eq. k) then
                lhs(j, j) = 1.d0
             else
                ! build lhs matrix
-               lhs(j, k) = get_cov(vm, anisxyz(:, useidx(k, i)), anisxyz(:, useidx(j, i)))
+               lhs(j, k) = get_cov(vm, coords(:, useidx(k, simidx)), &
+                                   coords(:, useidx(j, simidx)))
                if (lhs(j, k) .lt. 0) stop 'ERROR: Negative covariance.'
                lhs(k, j) = lhs(j, k)
             end if
@@ -223,17 +225,18 @@ contains
       end do
 
       ! solve the kriging system - external call to LAPACK
-      call solve(lhs(1:nuse(i), 1:nuse(i)), kwts(1:nuse(i)), rhs(1:nuse(i)), &
-                 nuse(i), 1, test)
+      call solve(lhs(1:nuse(simidx), 1:nuse(simidx)), kwts(1:nuse(simidx)), &
+                 rhs(1:nuse(simidx)), nuse(simidx), 1, test)
 
-      ! calcualte conditional mean and stdev
+      ! calcualte conditional mean and standard devaition
       cmean = 0.d0
-      cstdev = get_cov(vm, [0.d0, 0.d0, 0.d0], [0.d0, 0.d0, 0.d0]) ! variance
-      do j = 1, nuse(i)
-         ! cmean considers previusly simulated values
-         cmean = cmean + kwts(j)*sim(useidx(j, i))
+      cstdev = get_cov(vm, coords(:, simidx), coords(:, simidx)) ! variance
+      do j = 1, nuse(simidx)
+         ! cmean considers previously simulated values
+         cmean = cmean + kwts(j)*sim(useidx(j, simidx))
          cstdev = cstdev - kwts(j)*rhs(j)
       end do
+      cstdev = sqrt(max(cstdev, 0.0))
 
    end subroutine krige
 
