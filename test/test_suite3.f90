@@ -122,7 +122,7 @@ contains
       real(8) :: rhs(ndata), kwts(ndata), lhs(ndata, ndata)
       real(8) :: cmean, cstdev
 
-      true = 0.21019628829727266
+      true = 0.4584716875634445
 
       call solve_kriging_matrices(rhs, lhs, kwts, cmean, cstdev)
       diff = abs(true - cstdev)

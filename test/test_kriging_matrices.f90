@@ -77,6 +77,7 @@ contains
 
       ! all location are initially unsimulated
       isim = 0
+      nuse = 0
 
       ! loop over locations to simulate
       do i = 1, nloc
@@ -109,16 +110,13 @@ contains
 
          ! calc matrices for normal equations
          if (nuse(i) .gt. 0) then
-            call krige(i, vm(1), xyz, rhs, lhs, kwts, nuse, useidx, var, &
+            call krige(vm(1), xyz, rhs, lhs, kwts, nuse, useidx, var, &
                        simidx, cmean, cstdev)
-
          else
             ! if no data distribution is N(0,1)
             cmean = 0.d0
             cstdev = 1.d0
-
          end if
-
       end do
 
    end subroutine solve_kriging_matrices
