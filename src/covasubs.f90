@@ -1,6 +1,6 @@
 module covasubs
 
-   use types_mod
+   use types_mod, only: variogram
    use constants, only: PI
 
    implicit none
