@@ -223,7 +223,7 @@ contains
 
    function gelu(yval) result(a)
 
-      ! sigmoid lienar unit activation
+      ! gaussian lienar unit activation
 
       real(8), intent(in) :: yval(:, :)
       real(8) :: a(size(yval, 1), size(yval, 2))
