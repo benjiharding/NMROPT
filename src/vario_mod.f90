@@ -1,7 +1,8 @@
 module vario_mod
 
-   ! use geostat
+   use geostat, only: isill
    use rotationmatrix, only: set_rmat
+   use types_mod, only: variogram, lags
    use covasubs
    use subs
    use constants
@@ -69,6 +70,7 @@ contains
       allocate (expvario(nl)) ! move this allocation outside subroutine?
       expvario = -999.d0
 
+      ! loop over the specified lags
       do i = 1, nl
          expv = 0.d0
          np = size(head%lags(i)%idxs)
@@ -78,13 +80,17 @@ contains
 
       expvario = 0.5d0*expvario
 
+      ! reset values above sill to the sill
       do i = 1, nl
          if (expvario(i) .gt. sill) then
             expvario(i) = sill
          end if
       end do
 
-      expvario = expvario/sill
+      ! standardize the sill?
+      if (isill .gt. 0) then
+         expvario = expvario/sill
+      end if
 
    end subroutine update_vario
 
@@ -112,32 +118,33 @@ contains
 
    end subroutine calc_expsill
 
-   subroutine vario_mse(expvario, varmodelvals, varlagdist, idwpow, mse)
+   subroutine vario_mse(expvario, varmodelvals, varlagdist, idpow, mse)
 
       ! Weighted MSE between experimental points and variogram model
 
       ! parameters
       real(8), intent(in) :: expvario(:)
       real(8), intent(in) :: varmodelvals(:), varlagdist(:)
-      real(8), intent(in) :: idwpow
+      real(8), intent(in) :: idpow
 
       ! result
       real(8), intent(out) :: mse
 
       ! local variables
-      real(8), allocatable :: idw_wts(:)
-      integer :: nlags
+      real(8), allocatable :: idwts(:)
+      integer :: i, nlags
 
       ! initilaize a few variables
       nlags = size(varlagdist)
       mse = 0.d0
 
       ! get weights by lag distance
-      idw_wts = inv_dist(varlagdist, idwpow, nlags)
+      idwts = inv_dist(varlagdist, idpow, nlags)
 
       ! get the weighted MSE
-      mse = sum(idw_wts*(varmodelvals - expvario)**2)!/dble(nlags)
-      ! mse = 1.d0/dble(nlags)*mse/sum(idw_wts)
+      do i = 1, nlags
+         mse = mse + idwts(i)*(varmodelvals(i) - expvario(i))**2
+      end do
 
    end subroutine vario_mse
 
@@ -213,153 +220,6 @@ contains
       end do
 
    end subroutine varmodelpts
-
-   ! subroutine vario_pairs(x, y, z, azm, atol, bandh, dip, dtol, &
-   !                        bandv, nlags, lagdis, lagtol, nd, &
-   !                        pairs, lagbins)
-
-   !    ! data indices and lag index for valid variogram pairs
-
-   !    ! parameters
-   !    real(8), intent(in) :: x(:), y(:), z(:)
-   !    real(8), intent(in) :: azm, atol, bandh, dip, dtol, &
-   !                           bandv, lagdis, lagtol
-   !    integer, intent(in) :: nlags, nd
-
-   !    ! result
-   !    integer, allocatable, intent(out) :: pairs(:, :)
-   !    real(8), allocatable, intent(out) :: lagbins(:)
-
-   !    ! local variables
-   !    real(8), allocatable :: lagh(:)
-   !    real(8) :: azmuth, uvxazm, uvyazm, csatol, declin, &
-   !               uvzdec, uvhdec, csdtol, band
-   !    real(8) :: maxdis, dx, dy, dz, dxs, dys, dzs, dxy, &
-   !               h, hs, dcazm, dcdec
-   !    integer :: i, j, k, n, np, maxpairs
-
-   !    maxdis = (nlags*lagdis)**2
-
-   !    ! specify angles and distances
-   !    azmuth = (90.d0 - azm)*PI/180.d0
-   !    uvxazm = cos(azmuth)
-   !    uvyazm = sin(azmuth)
-
-   !    if (atol .le. 0.d0) then
-   !       csatol = cos(45.d0*PI/180.d0)
-   !    else
-   !       csatol = cos(atol*PI/180.d0)
-   !    end if
-
-   !    declin = (90.d0 - dip)*PI/180.d0
-   !    uvzdec = cos(declin)
-   !    uvhdec = sin(declin)
-
-   !    if (dtol .le. 0.d0) then
-   !       csdtol = cos(45.d0*PI/180.d0)
-   !    else
-   !       csdtol = cos(dtol*PI/180.d0)
-   !    end if
-
-   !    ! initialize max possible pairs and counter
-   !    k = 0
-   !    maxpairs = 0
-   !    do i = 1, nd
-   !       do j = i, nd
-   !          maxpairs = maxpairs + 1
-   !       end do
-   !    end do
-
-   !    ! allocate the output arrays
-   !    allocate (pairs(maxpairs, 3)) ! head idx, tail idx, lag idx
-   !    allocate (lagh(maxpairs), lagbins(nlags))
-
-   !    ! iterate over all pairs
-   !    do i = 1, nd
-   !       do j = i, nd
-
-   !          dx = x(j) - x(i)
-   !          dy = y(j) - y(i)
-   !          dz = z(j) - z(i)
-   !          dxs = dx*dx
-   !          dys = dy*dy
-   !          dzs = dz*dz
-   !          hs = dxs + dys + dzs
-
-   !          if (hs .lt. EPSLON) cycle
-   !          if (hs .gt. maxdis) cycle
-
-   !          h = sqrt(max(hs, 0.d0))
-
-   !          ! check the azimuth is acceptable
-   !          dxy = sqrt(max((dxs + dys), 0.d0))
-   !          if (dxy .lt. EPSLON) then
-   !             dcazm = 1.0
-   !          else
-   !             dcazm = (dx*uvxazm + dy*uvyazm)/dxy
-   !          end if
-   !          if (abs(dcazm) .lt. csatol) cycle
-
-   !          ! check horizontal bandwidth
-   !          band = uvxazm*dy - uvyazm*dx
-   !          if (abs(band) .gt. bandh) cycle
-
-   !          ! check dip angle
-   !          if (dcazm .lt. 0.d0) then
-   !             dxy = -dxy
-   !          end if
-   !          if (dxy .lt. EPSLON) then
-   !             dcdec = 0.d0
-   !          else
-   !             dcdec = (dxy*uvhdec + dz*uvzdec)/h
-   !             if (abs(dcdec) .lt. csdtol) cycle
-   !          end if
-
-   !          ! check vertical bandwidth
-   !          band = uvhdec*dz - uvzdec*dxy
-   !          if (abs(band) .gt. bandv) cycle
-
-   !          ! finaly check the lag tolerance
-   !          ! iterate over all bins as they may overlap
-   !          do n = 0, nlags - 1
-
-   !             if (h .ge. (n*lagdis - lagtol)) then
-   !                if (h .le. (n*lagdis + lagtol)) then
-
-   !                   ! pair is acceptable if we got this far
-   !                   k = k + 1
-   !                   pairs(k, 1) = i
-   !                   pairs(k, 2) = j
-   !                   pairs(k, 3) = n + 1
-   !                   lagh(k) = h
-
-   !                end if
-   !             end if
-   !          end do
-
-   !          ! end main loop
-   !       end do
-   !    end do
-
-   !    ! only retain the populated pairs
-   !    pairs = pairs(1:k, :)
-   !    np = size(pairs, dim=1)
-
-   !    ! get average distance in each lag bin
-   !    lagbins = HUGE(h)
-   !    do n = 1, nlags
-   !       h = 0.d0
-   !       k = 0
-   !       do i = 1, np
-   !          if (pairs(i, 3) .eq. n) then
-   !             h = h + lagh(i)
-   !             k = k + 1
-   !          end if
-   !       end do
-   !       lagbins(n) = h/k
-   !    end do
-
-   ! end subroutine vario_pairs
 
    subroutine vario_pairs(xyz, azm, azmtol, bandhorz, dip, diptol, &
                           bandvert, tilt, nlags, lagdist, lagtol, ndata, &
@@ -551,18 +411,30 @@ contains
 
    end subroutine vario_pairs
 
-   function inv_dist(lagdis, power, nlags) result(idw_wts)
+   function inv_dist(lagdis, power, nlags) result(idwts)
 
       ! inverse distance power weighting
 
       real(8), intent(in) :: lagdis(nlags)
       real(8), intent(in) :: power
       integer, intent(in) :: nlags
-      real(8) :: idw_wts(nlags)
+      real(8) :: idwts(nlags), sumidw
+      integer :: i
 
-      idw_wts = 1.d0/lagdis**power
-      ! idw_wts = idw_wts/maxval(idw_wts)
-      idw_wts = idw_wts/sum(idw_wts)
+      idwts = 1.d0
+      sumidw = SMALLDBLE
+
+      do i = 1, nlags
+         if (lagdis(i) .gt. 0.d0) then
+            sumidw = sumidw + 1.d0/lagdis(i)**power
+         end if
+      end do
+
+      do i = 1, nlags
+         if (lagdis(i) .gt. 0.d0) then
+            idwts(i) = idwts(i)*1.d0/lagdis(i)**power/sumidw
+         end if
+      end do
 
    end function inv_dist
 
