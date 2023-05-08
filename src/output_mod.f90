@@ -4,6 +4,7 @@ module output_mod
    use network_mod
    use vario_mod
    use sequences_mod
+   use objective_mod
 
    implicit none
 
@@ -17,7 +18,7 @@ contains
       real(8), allocatable :: opt_AL(:, :)
       integer, allocatable :: opt_AL_i(:, :, :)
       real(8) :: best_ivars(ncut, nreals)
-      real(8), allocatable :: expvario(:), expnpoint(:)
+      real(8), allocatable :: expvario(:), expnpoint(:), fimp(:)
       integer, allocatable :: expruns(:)
       integer :: cumruns(maxrun)
       integer :: i, ic, j, k, hidx, tidx
@@ -38,6 +39,18 @@ contains
       ! write out the optimized network weights
       do i = 1, size(best)
          write (lwts, "(*(g14.8,1x))") best(i)
+      end do
+
+      ! calculate and write out feature importance
+      tempfl = trim(prefix)//"feature_importance.out"
+      open (ltrg, file=tempfl, status="UNKNOWN")
+      write (ltrg, "(A)") "Expected Feature Importance"
+      write (ltrg, "(i1)") 2
+      write (ltrg, "(A)") "Feature Index"
+      write (ltrg, "(A)") "Feature Importance"
+      call feature_importance(nnet, ysimd, fimp)
+      do i = 1, nnet%ld(1)
+         write (ltrg, "((i2,1x,g14.8,1x))") i, fimp(i)
       end do
 
       ! write out targets and experimental values
@@ -93,8 +106,8 @@ contains
                                     expvario, best_ivars(ic, i))
                   do k = 1, size(heads%dirs(j)%lags)
                      write (ltrg, "(*(g14.8,1x))") i, ic, j, varlagdist%dirs(j)%vlags(k), &
-                        size(heads%dirs(j)%lags(k)%idxs), expvario(k)/ivmod(ic)%sill, &
-                        target_ivario%cuts(ic)%dirs(j)%vlags(k)/ivmod(ic)%sill, varazm%dirs(j)%vlags(k), &
+                        size(heads%dirs(j)%lags(k)%idxs), expvario(k), &
+                        target_ivario%cuts(ic)%dirs(j)%vlags(k), varazm%dirs(j)%vlags(k), &
                         vardip%dirs(j)%vlags(k)
                   end do
                end do

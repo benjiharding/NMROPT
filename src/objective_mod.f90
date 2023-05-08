@@ -143,6 +143,7 @@ contains
       write (*, *) " "
       write (*, *) "Scaling objective components..."
 
+      objscale = 1.d0
       call obj_scale()
 
       write (*, "(A*(g14.8,1x))") "Variogram component: ", objscale(1)
@@ -163,7 +164,6 @@ contains
       real(8) :: objinit(4), objdelta(4)
       integer :: i, j
 
-      objscale = 1.d0
       objinit = 0.d0
       objdelta = 0.d0
 
@@ -343,7 +343,7 @@ contains
                               expivario, ivars(j))
             call vario_mse(expivario, target_ivario%cuts(j)%dirs(i)%vlags, &
                            varlagdist%dirs(i)%vlags, dble(idwpow), mse)
-            objt = objt + mse
+            objt = objt + mse*1/ncut
          end do
       end do
 
@@ -402,5 +402,74 @@ contains
       objt = objt*objscale(4)
 
    end subroutine obj_npoint
+
+   subroutine feature_importance(net, ysim, fimp)
+
+      ! permutation feature importance for trained network
+
+      type(network), intent(inout) :: net
+      real(8), intent(in) :: ysim(:, :, :)
+      real(8), allocatable, intent(out) :: fimp(:)
+      real(8), allocatable :: yperm(:, :), yp(:)
+      real(8) :: ep, eo, reg
+      integer, allocatable :: idxs(:)
+      integer :: i, j, nfact
+
+      ndata = size(ysim, dim=1)
+      nfact = net%ld(1)
+      fimp = 0.d0
+
+      allocate (yperm(ndata, nfact), yp(ndata))
+      allocate (fimp(nfact))
+
+      idxs = [(i, i=1, ndata)]
+      call vector_to_matrices(best, net)
+      call calc_regularization(net, reg)
+
+      ! main loop over input features
+      do i = 1, net%ld(1)
+
+         ! permute each realization of the ith feature
+         do j = 1, nreals
+
+            ! get the permuted error
+            call shuffle(idxs)
+            yperm = ysim(:, :, j)
+            yp = yperm(idxs, i)
+            yperm(:, i) = yp
+
+            call network_forward(net, yperm, AL, .true.)
+            call calc_expsill(AL, sill)
+            call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
+
+            if (vario .gt. 0) call obj_vario(objt_vario)
+            if (ivario .gt. 0) call obj_ivario(objt_ivario)
+            if (runs .gt. 0) call obj_runs(objt_runs)
+            if (npoint .gt. 0) call obj_npoint(objt_npt)
+
+            ep = objt_vario + objt_ivario + objt_runs + objt_npt
+
+            ! get the original error
+            call network_forward(net, ysim(:, :, j), AL, .true.)
+            call calc_expsill(AL, sill)
+            call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
+
+            if (vario .gt. 0) call obj_vario(objt_vario)
+            if (ivario .gt. 0) call obj_ivario(objt_ivario)
+            if (runs .gt. 0) call obj_runs(objt_runs)
+            if (npoint .gt. 0) call obj_npoint(objt_npt)
+
+            eo = objt_vario + objt_ivario + objt_runs + objt_npt
+
+            ! sum the feature importance
+            fimp(i) = fimp(i) + (ep - eo)
+
+         end do
+      end do
+
+      ! get the expected value
+      fimp = fimp/nreals
+
+   end subroutine feature_importance
 
 end module objective_mod
