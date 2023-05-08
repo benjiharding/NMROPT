@@ -83,7 +83,7 @@ contains
       oldcp = 0.d0
       cp = 0.d0
       do i = 1, nd
-         cp = cp + wt(i)/twt
+         cp = cp + cumwt(i)/twt
          cumwt(i) = (cp + oldcp)/2.0
          oldcp = cp
          call gauinv(dble(cumwt(i)), vrg(i), ierr)
