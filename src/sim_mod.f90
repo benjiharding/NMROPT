@@ -167,7 +167,7 @@ contains
 
             end do
 
-            ! calculate matrices for normal equations
+            ! build and solve normal equations
             if (nuse(simidx) .gt. 0) then
                call krige(pool(igv), xyz, rhs, lhs, kwts, nuse, useidx, &
                           sim, simidx, cmean, cstdev)
@@ -175,7 +175,6 @@ contains
                ! if no data the distribution is N(0,1)
                cmean = 0.d0
                cstdev = 1.d0
-
             end if
 
             ! draw a random number and simulate
@@ -203,7 +202,7 @@ contains
       real(8), intent(in) :: coords(:, :), sim(:)
       type(variogram) :: vm
       real(8), intent(inout) :: rhs(:), lhs(:, :), kwts(:)
-      real(8), intent(out) :: cmean, cstdev
+      real(8), intent(inout) :: cmean, cstdev
       integer :: j, k, test
 
       ! calculate matrices for normal equations
