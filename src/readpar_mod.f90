@@ -375,6 +375,14 @@ contains
       call set_sill(vmod)
       call set_rotmatrix(vmod)
 
+      ! basic warning for potential errors
+      do i = 1, nvarg
+         if ((vmod(i)%sill - 1.d0 .gt. EPSLON) .and. (isill .eq. 1)) then
+            write (*, *) "WARNING: standardizing exp variogram sill but &
+&            variogram model sill is not 1.0"
+         end if
+      end do
+
       ! parse indicator variogram models
       if (ivario .gt. 0) then
          do ic = 1, ncut
@@ -409,6 +417,14 @@ contains
 
          call set_sill(ivmod)
          call set_rotmatrix(ivmod)
+
+         ! basic warning for potential errors
+         do i = 1, nvarg
+            if ((ivmod(ic)%sill - 1.d0 .gt. EPSLON) .and. (isill .eq. 1)) then
+               write (*, *) "WARNING: standardizing exp variogram sill but &
+   &            variogram model sill is not 1.0"
+            end if
+         end do
 
       end if
 
@@ -501,7 +517,7 @@ contains
       write (*, *) " reading covariance structure of Gaussian pool..."
 
       ! allocate arrays for the pool
-      ngvarg = nnet%ld(1) - 1 !layer_dims(1) - 1
+      ngvarg = nnet%ld(1) - 1
       allocate (pool(ngvarg), stat=test)
       if (test .ne. 0) stop "allocation failed due to insufficient memory!"
 
