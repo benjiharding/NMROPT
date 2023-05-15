@@ -143,13 +143,18 @@ contains
       write (*, *) " "
       write (*, *) "Scaling objective components..."
 
-      objscale = 1.d0
+      ! objscale = 1.d0
       call obj_scale()
 
-      write (*, "(A*(g14.8,1x))") "Variogram component: ", objscale(1)
-      write (*, "(A*(g14.8,1x))") "Indicator variogram component: ", objscale(2)
-      write (*, "(A*(g14.8,1x))") "Runs component: ", objscale(3)
-      write (*, "(A*(g14.8,1x))") "N-point component: ", objscale(4)
+      ! write (*, "(A*(g14.8,1x))") "Variogram component: ", objscale(1)
+      ! write (*, "(A*(g14.8,1x))") "Indicator variogram component: ", objscale(2)
+      ! write (*, "(A*(g14.8,1x))") "Runs component: ", objscale(3)
+      ! write (*, "(A*(g14.8,1x))") "N-point component: ", objscale(4)
+
+      write (*, "(A*(g14.8,1x))") "Variogram component: ", objscale%vario(1)
+      write (*, "(A*(g14.8,1x))") "Indicator variogram component: ", objscale%ivario(1)
+      write (*, "(A*(g14.8,1x))") "Runs component: ", (objscale%runs(i), i=1, ncut)
+      write (*, "(A*(g14.8,1x))") "N-point component: ", (objscale%npoint(i), i=1, ncut)
 
    end subroutine init_objective
 
@@ -161,11 +166,39 @@ contains
       integer, parameter :: MAXPERT = 1000
       real(8), allocatable :: vect(:), vect_denorm(:), min_b(:), max_b(:), diff(:)
       real(8), allocatable :: trial(:), trial_denorm(:)
-      real(8) :: objinit(4), objdelta(4)
-      integer :: i, j
+      ! real(8) :: objinit(4), objdelta(4)
+      type(objective) :: objinit, objdelta
+      integer :: i, j, ic
 
-      objinit = 0.d0
-      objdelta = 0.d0
+      real(8) :: mse
+      integer, allocatable :: iarr(:), expruns(:)
+      integer :: cumruns(maxrun)
+      real(8), allocatable :: phi_n(:)
+
+      ! objinit = 0.d0
+      ! objdelta = 0.d0
+
+      allocate (objinit%vario(1), objinit%ivario(ncut), &
+                objinit%runs(ncut), objinit%npoint(ncut))
+      allocate (objdelta%vario(1), objdelta%ivario(ncut), &
+                objdelta%runs(ncut), objdelta%npoint(ncut))
+      allocate (objscale%vario(1), objscale%ivario(ncut), &
+                objscale%runs(ncut), objscale%npoint(ncut))
+
+      objscale%vario = 1.d0
+      objscale%ivario = 1.d0
+      objscale%runs = 1.d0
+      objscale%npoint = 1.d0
+
+      objinit%vario = 0.d0
+      objinit%ivario = 0.d0
+      objinit%runs = 0.d0
+      objinit%npoint = 0.d0
+
+      objdelta%vario = 0.d0
+      objdelta%ivario = 0.d0
+      objdelta%runs = 0.d0
+      objdelta%npoint = 0.d0
 
       ! initial trial vector
       allocate (vect(nnet%dims))
@@ -187,21 +220,52 @@ contains
       call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
       ! initilaize a starting value for each component
+      ! if (vario .gt. 0) then
+      !    call obj_vario(objt_vario)
+      !    objinit(1) = objt_vario
+      ! end if
+      ! if (ivario .gt. 0) then
+      !    call obj_ivario(objt_ivario)
+      !    objinit(2) = objt_ivario
+      ! end if
+      ! if (runs .gt. 0) then
+      !    call obj_runs(objt_runs)
+      !    objinit(3) = objt_runs
+      ! end if
+      ! if (npoint .gt. 0) then
+      !    call obj_npoint(objt_npt)
+      !    objinit(4) = objt_npt
+      ! end if
+
       if (vario .gt. 0) then
          call obj_vario(objt_vario)
-         objinit(1) = objt_vario
+         objinit%vario(1) = objt_vario
       end if
+
       if (ivario .gt. 0) then
          call obj_ivario(objt_ivario)
-         objinit(2) = objt_ivario
+         objinit%ivario(1) = objt_ivario
       end if
+
       if (runs .gt. 0) then
-         call obj_runs(objt_runs)
-         objinit(3) = objt_runs
+         do i = 1, ncut
+            mse = 0.d0
+            cumruns = 0
+            do j = 1, ndh
+               iarr = AL_i(udhidx(j) + 1:udhidx(j + 1), i)
+               call binary_runs(iarr, maxrun, expruns)
+               cumruns = cumruns + expruns
+            end do
+            objinit%runs(i) = sum((dble(target_runs(:, i)) - dble(cumruns))**2)
+         end do
       end if
+
       if (npoint .gt. 0) then
-         call obj_npoint(objt_npt)
-         objinit(4) = objt_npt
+         do i = 1, ncut
+            mse = 0.d0
+            call npoint_connect(AL_i(:, i), nstep, ndh, udhidx, phi_n)
+            objinit%npoint(i) = sum((target_npoint(:, i) - phi_n)**2)
+         end do
       end if
 
       ! iterate over the pertubations
@@ -221,43 +285,105 @@ contains
          call calc_expsill(AL, sill)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
+         ! if (vario .gt. 0) then
+         !    call obj_vario(objt_vario)
+         !    if (objt_vario .lt. 0.0) objt_vario = objinit(1)
+         !    objdelta(1) = objdelta(1) + abs(objinit(1) - objt_vario)
+         ! end if
+
+         ! if (ivario .gt. 0) then
+         !    call obj_ivario(objt_ivario)
+         !    if (objt_ivario .lt. 0.0) objt_ivario = objinit(2)
+         !    objdelta(2) = objdelta(2) + abs(objinit(2) - objt_ivario)
+         ! end if
+
+         ! if (runs .gt. 0) then
+         !    call obj_runs(objt_runs)
+         !    if (objt_runs .lt. 0.0) objt_runs = objinit(3)
+         !    objdelta(3) = objdelta(3) + abs(objinit(3) - objt_runs)
+         ! end if
+
+         ! if (npoint .gt. 0) then
+         !    call obj_npoint(objt_npt)
+         !    if (objt_npt .lt. 0.0) objt_npt = objinit(4)
+         !    objdelta(4) = objdelta(4) + abs(objinit(4) - objt_npt)
+         ! end if
+
          if (vario .gt. 0) then
             call obj_vario(objt_vario)
-            if (objt_vario .lt. 0.0) objt_vario = objinit(1)
-            objdelta(1) = objdelta(1) + abs(objinit(1) - objt_vario)
+            if (objt_vario .lt. 0.0) objt_vario = objinit%vario(1)
+            objdelta%vario(1) = objdelta%vario(1) + &
+                                abs(objinit%vario(1) - objt_vario)
          end if
 
          if (ivario .gt. 0) then
             call obj_ivario(objt_ivario)
-            if (objt_ivario .lt. 0.0) objt_ivario = objinit(2)
-            objdelta(2) = objdelta(2) + abs(objinit(2) - objt_ivario)
+            if (objt_ivario .lt. 0.0) objt_ivario = objinit%ivario(1)
+            objdelta%ivario(1) = objdelta%ivario(1) + &
+                                 abs(objinit%ivario(1) - objt_ivario)
          end if
 
          if (runs .gt. 0) then
-            call obj_runs(objt_runs)
-            if (objt_runs .lt. 0.0) objt_runs = objinit(3)
-            objdelta(3) = objdelta(3) + abs(objinit(3) - objt_runs)
+            do ic = 1, ncut
+               mse = 0.d0
+               cumruns = 0
+               do j = 1, ndh
+                  iarr = AL_i(udhidx(j) + 1:udhidx(j + 1), ic)
+                  call binary_runs(iarr, maxrun, expruns)
+                  cumruns = cumruns + expruns
+               end do
+               mse = sum((dble(target_runs(:, ic)) - dble(cumruns))**2)
+               if (mse .lt. 0.0) mse = objinit%runs(ic)
+               objdelta%runs(ic) = objdelta%runs(ic) + abs(objinit%runs(ic) - mse)
+            end do
          end if
 
          if (npoint .gt. 0) then
-            call obj_npoint(objt_npt)
-            if (objt_npt .lt. 0.0) objt_npt = objinit(4)
-            objdelta(4) = objdelta(4) + abs(objinit(4) - objt_npt)
+            do ic = 1, ncut
+               mse = 0.d0
+               call npoint_connect(AL_i(:, ic), nstep, ndh, udhidx, phi_n)
+               mse = sum((target_npoint(:, ic) - phi_n)**2)
+               if (mse .lt. 0.0) mse = objinit%npoint(ic)
+               objdelta%npoint(ic) = objdelta%npoint(ic) + &
+                                     abs(objinit%npoint(ic) - mse)
+            end do
          end if
 
       end do
 
       ! scale objective components
-      if (vario .gt. 0) objscale(1) = MAXPERT/objdelta(1)
-      if (ivario .gt. 0) objscale(2) = MAXPERT/objdelta(2)
-      if (runs .gt. 0) objscale(3) = MAXPERT/objdelta(3)
-      if (npoint .gt. 0) objscale(4) = MAXPERT/objdelta(4)
+      ! if (vario .gt. 0) objscale(1) = MAXPERT/objdelta(1)
+      ! if (ivario .gt. 0) objscale(2) = MAXPERT/objdelta(2)
+      ! if (runs .gt. 0) objscale(3) = MAXPERT/objdelta(3)
+      ! if (npoint .gt. 0) objscale(4) = MAXPERT/objdelta(4)
+
+      if (vario .gt. 0) objscale%vario(1) = MAXPERT/objdelta%vario(1)
+      if (ivario .gt. 0) objscale%ivario(1) = MAXPERT/objdelta%ivario(1)
+      do ic = 1, ncut
+         if (runs .gt. 0) then
+            objscale%runs(ic) = MAXPERT/objdelta%runs(ic)
+         end if
+         if (npoint .gt. 0) then
+            objscale%npoint(ic) = MAXPERT/objdelta%npoint(ic)
+         end if
+      end do
 
       ! user defined scaling if required
-      objscale(1) = userfac(1)*objscale(1)
-      objscale(2) = userfac(2)*objscale(2)
-      objscale(3) = userfac(3)*objscale(3)
-      objscale(4) = userfac(4)*objscale(4)
+      ! objscale(1) = userfac(1)*objscale(1)
+      ! objscale(2) = userfac(2)*objscale(2)
+      ! objscale(3) = userfac(3)*objscale(3)
+      ! objscale(4) = userfac(4)*objscale(4)
+
+      objscale%vario(1) = userfac(1)*objscale%vario(1)
+      objscale%ivario(2) = userfac(2)*objscale%ivario(2)
+      do ic = 1, ncut
+         if (runs .gt. 0) then
+            objscale%runs(ic) = userfac(3)*objscale%runs(ic)
+         end if
+         if (npoint .gt. 0) then
+            objscale%npoint(ic) = userfac(3)*objscale%npoint(ic)
+         end if
+      end do
 
    end subroutine obj_scale
 
@@ -321,7 +447,8 @@ contains
          objt = objt + mse
       end do
 
-      objt = objt*objscale(1)
+      ! objt = objt*objscale(1)
+      objt = objt*objscale%vario(1)
 
    end subroutine obj_vario
 
@@ -343,11 +470,12 @@ contains
                               expivario, ivars(j))
             call vario_mse(expivario, target_ivario%cuts(j)%dirs(i)%vlags, &
                            varlagdist%dirs(i)%vlags, dble(idwpow), mse)
-            objt = objt + mse*1/ncut
+            objt = objt + mse !*1/ncut
          end do
       end do
 
-      objt = objt*objscale(2)
+      ! objt = objt*objscale(2)
+      objt = objt*objscale%ivario(1)
 
    end subroutine obj_ivario
 
@@ -372,11 +500,12 @@ contains
             cumruns = cumruns + expruns
          end do
          mse = sum((dble(target_runs(:, i)) - dble(cumruns))**2)!/dble(maxrun)
-         objt = objt + mse
+         ! objt = objt + mse
+         objt = objt + mse*objscale%runs(i)
       end do
 
       ! objt = objt/ncut
-      objt = objt*objscale(3)
+      ! objt = objt*objscale(3)
 
    end subroutine obj_runs
 
@@ -395,11 +524,12 @@ contains
       do i = 1, ncut
          call npoint_connect(AL_i(:, i), nstep, ndh, udhidx, phi_n)
          mse = sum((target_npoint(:, i) - phi_n)**2)!/dble(nstep)
-         objt = objt + mse
+         ! objt = objt + mse
+         objt = objt + mse*objscale%npoint(i)
       end do
 
       ! objt = objt/ncut
-      objt = objt*objscale(4)
+      ! objt = objt*objscale(4)
 
    end subroutine obj_npoint
 

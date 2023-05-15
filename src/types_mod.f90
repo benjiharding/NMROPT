@@ -43,6 +43,13 @@ module types_mod
       real(8) :: regconst ! regularization constant
    end type network
 
+   type objective
+      real(8), allocatable :: vario(:)
+      real(8), allocatable :: ivario(:)
+      real(8), allocatable :: runs(:)
+      real(8), allocatable :: npoint(:)
+   end type objective
+
    ! ragged arrays for lag data
    type :: indices
       integer, allocatable :: idxs(:)
