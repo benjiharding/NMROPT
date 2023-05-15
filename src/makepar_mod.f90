@@ -38,7 +38,7 @@ contains
       write (99, "(A)") '30                                - max number of runs to consider'
       write (99, "(A)") '1                                 - npoint above or below threshold? (0=below, 1=above)'
       write (99, "(A)") '30                                - max number of connected steps to consider'
-      write (99, "(A)") '0.8 0.5 1.0 15 1000               - DE parameters: mutation, cp lo, cp hi, pop. size, its'
+      write (99, "(A)") '0.8 0.5 1.0 15 1000               - DE parameters: F, CR lo, CR hi, pop. size, its'
       write (99, "(A)") '-5 5                              - DE bounds: lower, upper'
       write (99, "(A)") '2                                 - number of experimental variogram directions'
       write (99, "(A)") '0.0 22.5 1000 0.0 22.5 1000 0.0   - dir 01: azm,azmtol,bandhorz,dip,diptol,bandvert,tilt'
