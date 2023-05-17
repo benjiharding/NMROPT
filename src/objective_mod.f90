@@ -394,8 +394,15 @@ contains
 
       real(8), intent(in) :: v(:) ! trial vector
       real(8), intent(out) :: gobjt ! global temp obj value
+      real(8) :: objt_vario
+      real(8) :: objt_ivario
+      real(8) :: objt_runs
+      real(8) :: objt_npt
+      real(8) :: sill
       real(8) :: reg
       integer :: ireal
+      real(8) :: AL(ndata)
+      integer :: AL_i(ndata, ncut)
 
       gobjt = 0.d0
       objt_vario = 0.d0
