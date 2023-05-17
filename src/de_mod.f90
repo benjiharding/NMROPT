@@ -6,6 +6,7 @@ module de_mod
    use types_mod
    use mtmod
    use constants
+   use omp_lib
 
    implicit none
 
@@ -21,7 +22,8 @@ contains
 
       call cpu_time(start)
 
-      call de(nnet%dims, popsize, its, mut, cplo, cphi, bmin, bmax, best)
+      ! call de(nnet%dims, popsize, its, mut, cplo, cphi, bmin, bmax, best)
+      call pde(nnet%dims, popsize, its, mut, cplo, cphi, bmin, bmax, best)
 
       call cpu_time(finish)
 
@@ -120,8 +122,7 @@ contains
             ! select candidates for mutation
             idxs = selection(popsize, j)
 
-            ! mutuate the selected vectors
-            ! mutant = rand1_mutation(idxs, dims, pop, mut)
+            ! mutuate the selected vector
             mutant = c2b1_mutation(idxs, best_idx, j, dims, pop, mut, mut)
 
             ! crossover and get the trial vector
@@ -162,8 +163,7 @@ contains
                ! exclude the current best from mutation
                if (k .eq. best_idx) cycle
                idxs = selection(popsize, k)
-               ! mutant = rand1_mutation(idxs, dims, pop, mut)
-               mutant = c2b1_mutation(idxs, best_idx, j, dims, pop, mut, mut)
+               mutant = c2b1_mutation(idxs, best_idx, k, dims, pop, mut, mut)
                pop(:, k) = crossover(mutant, crossp, pop(:, k), dims)
 
             end do
@@ -185,6 +185,182 @@ contains
       end do
 
    end subroutine de
+
+   subroutine pde(dims, popsize, its, mut, cplo, cphi, bmin, bmax, best, ifunc)
+
+      ! parallel differential evolution
+
+      integer, parameter :: maxnochange = 200
+
+      ! inputs
+      integer, intent(in) :: dims, popsize, its
+      real(8), intent(in) :: mut, cplo, cphi, bmin, bmax
+      real(8), allocatable, intent(inout) :: best(:)
+      integer, optional, intent(in) :: ifunc
+
+      ! local variables
+      integer :: i, j, k, best_idx, idxs(3), func, nochange
+      real(8), allocatable :: pop(:, :), pop_denorm(:, :)
+      real(8), allocatable :: min_b(:, :), max_b(:, :), diff(:, :)
+      real(8), allocatable :: mutant(:)
+      real(8), allocatable :: trial(:)
+      real(8), allocatable :: fitness(:), pfit(:), fobj(:)
+      real(8) :: crossp
+
+      ! parallel local variables
+      real(8), allocatable :: mutant_loc(:)
+      real(8), allocatable :: trial_loc(:), trial_denorm_loc(:)
+      real(8), allocatable :: trials(:, :), trials_denorm(:, :)
+      integer :: idx_loc, idxs_loc(3)
+      integer :: id, first, last, nth
+      real(8) :: pfmin
+      integer :: pidx
+
+      ! interface for passing arbitrary objective functions
+      if (.not. present(ifunc)) then
+         func = 0
+      else
+         func = ifunc
+      end if
+
+      ! allocate the population and bounds
+      allocate (best(dims))
+      allocate (pop(dims, popsize))
+      allocate (trials(dims, popsize), trials_denorm(dims, popsize))
+      allocate (min_b(dims, 1), max_b(dims, 1))
+      min_b = bmin
+      max_b = bmax
+
+      ! allocate the trial vectors
+      allocate (trial(dims))
+
+      ! allocate objective counter
+      allocate (fobj(its))
+      fobj = huge(pfit)
+
+      ! initialize random population
+      do i = 1, dims
+         do j = 1, popsize
+            pop(i, j) = grnd()
+         end do
+      end do
+
+      ! calculate the denormalized population
+      diff = abs(min_b - max_b)
+      pop_denorm = spread(min_b(:, 1), 2, popsize) + &
+                   pop*spread(diff(:, 1), 2, popsize)
+
+      ! evaluate the fitness of each member
+      allocate (fitness(popsize), pfit(popsize))
+      fitness = 0.d0
+      do i = 1, popsize
+         fitness(i) = objfunc(pop_denorm(:, i), func)
+      end do
+
+      ! get the current best
+      best_idx = minloc(fitness, dim=1)
+      best = pop_denorm(:, best_idx)
+
+      nochange = 0
+
+      ! main loop
+      do i = 1, its
+
+         nochange = nochange + 1
+
+         ! write out the current value?
+         if (modulo(i, 100) .eq. 0) then
+            write (*, *) " working on DE iteration", i
+            if (i .gt. 1) then
+               write (*, *) " current objective value", fobj(i - 1)/fobj(1)
+            end if
+         end if
+
+         ! crossover prob b/w cpho and cphi
+         crossp = cphi + (cplo - cphi)*(1 - dble(i)/dble(its))**4
+
+         !
+         ! begin parallel region
+         !
+         !$omp PARALLEL PRIVATE(nnet, mutant_loc, trial_loc, trial_denorm_loc, &
+         !$omp idxs_loc, idx_loc, id, first, last) &
+         !$omp SHARED(dims, pop, popsize, mut, crossp, min_b, diff, func, nth, pfit, &
+         !$omp best_idx, trials, trials_denorm) &
+         !$omp NUM_THREADS(8)
+
+         id = omp_get_thread_num()
+         nth = omp_get_num_threads()
+         first = (id*popsize)/nth + 1
+         last = ((id + 1)*popsize)/nth
+
+         ! evaluate the fitness for this thread's indices
+         do idx_loc = first, last
+
+            idxs_loc = selection(popsize, idx_loc)
+            mutant_loc = c2b1_mutation(idxs_loc, best_idx, idx_loc, dims, pop, mut, mut)
+            trial_loc = crossover(mutant_loc, crossp, pop(:, idx_loc), dims)
+            trial_denorm_loc = min_b(:, 1) + trial_loc*diff(:, 1)
+
+            pfit(idx_loc) = objfunc(trial_denorm_loc, func)
+            trials(:, idx_loc) = trial_loc
+            trials_denorm(:, idx_loc) = trial_denorm_loc
+
+         end do
+         !$omp END PARALLEL
+
+         ! update population
+         do j = 1, popsize
+            if (pfit(j) .lt. fitness(j)) then
+               fitness(j) = pfit(j)
+               pop(:, j) = trials(:, j)
+            end if
+         end do
+
+         ! update the best
+         pfmin = minval(pfit, dim=1)
+         pidx = minloc(pfit, dim=1)
+         if (pfmin .lt. fitness(best_idx)) then
+            best_idx = pidx
+            best = trials_denorm(:, pidx)
+            nochange = 0
+         end if
+
+         ! store this iterations best value
+         fobj(i) = fitness(best_idx)
+
+         ! have we reached the nochange threshold?
+         if (nochange .gt. maxnochange) then
+
+            write (*, *) " random restart on iteration", i
+
+            ! randomly mutate the population
+            do k = 1, popsize
+
+               ! exclude the current best from mutation
+               if (k .eq. best_idx) cycle
+               idxs = selection(popsize, k)
+               mutant = c2b1_mutation(idxs, best_idx, k, dims, pop, mut, mut)
+               pop(:, k) = crossover(mutant, crossp, pop(:, k), dims)
+
+            end do
+
+            nochange = 0
+
+         end if
+
+         if (.not. present(ifunc)) then
+            ! write out the values
+            ! write (lobj, "(1(i0,1x),1(g14.8,1x))") i, fobj(i)/fobj(1)
+            write (lobj, "(1(i0,1x),*(g14.8,1x))") i, fobj(i)/fobj(1), &
+               pop_denorm(1, 1), pop_denorm(2, 1), fitness(1), crossp, mut
+         end if
+
+         ! are we done early?
+         if (fobj(i) .le. 1e-10) return
+
+      end do
+
+   end subroutine pde
 
    function selection(popsz, target) result(idxs)
 
