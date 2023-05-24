@@ -49,6 +49,8 @@ program main
    close (lwts)
    close (lobj)
 
-   write (*, *) "NMROPT version", VERSION, " finished"
+   ! finished
+   write (*, *) " "
+   write (*, "(A,f5.3,A)") "NMROPT version ", VERSION, " finished"
 
 end program main
