@@ -1,5 +1,16 @@
 program main
 
+   ! Network model of regionalization optimzation. Weight
+   ! and bias values are optimized using differential evolution
+   ! for the user defined network architecture and specified
+   ! objectives.
+   !
+   ! Author: Ben Harding
+   ! Date: May 2023
+   ! Location: Centre for Computational Geostatistics,
+   ! University of Alberta, Edmonton, Canada
+   ! Contact: bharding@ualberta.ca
+
    use readpar_mod
    use sim_mod, only: simulate
    use network_mod, only: init_network
@@ -8,6 +19,8 @@ program main
    use output_mod, only: write_files
 
    implicit none
+
+   real, parameter :: VERSION = 1.000
 
    ! read the parfile
    call readpar
@@ -25,7 +38,7 @@ program main
    call init_objective
 
    ! minimize the objective
-   call optimize
+   call optimize(ipara)
 
    ! write output files
    call write_files
@@ -36,6 +49,6 @@ program main
    close (lwts)
    close (lobj)
 
-contains
+   write (*, *) "NMROPT version", VERSION, " finished"
 
 end program main

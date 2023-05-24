@@ -1,8 +1,8 @@
 module de_mod
 
    use geostat, only: mut, cplo, cphi, popsize, its, best, &
-                      bmin, bmax, lobj, nnet
-   use objective_mod, only: obj_nmr
+                      bmin, bmax, lobj, nnet, ysimd, num_threads
+   use objective_mod, only: obj_nmr, pobj_nmr
    use types_mod
    use mtmod
    use constants
@@ -12,20 +12,34 @@ module de_mod
 
 contains
 
-   subroutine optimize()
+   subroutine optimize(ipara)
 
+      integer, intent(in) :: ipara
       real(8) :: start, finish
 
       write (*, *) " "
       write (*, *) "Starting differential evolution..."
       write (*, *) " "
 
-      call cpu_time(start)
+      if (ipara .eq. 0) then
 
-      ! call de(nnet%dims, popsize, its, mut, cplo, cphi, bmin, bmax, best)
-      call pde(nnet%dims, popsize, its, mut, cplo, cphi, bmin, bmax, best)
+         call cpu_time(start)
 
-      call cpu_time(finish)
+         call de(nnet%dims, popsize, its, mut, cplo, cphi, bmin, bmax, best)
+
+         call cpu_time(finish)
+
+      else if (ipara .eq. 1) then
+
+         call omp_set_num_threads(num_threads)
+
+         start = omp_get_wtime()
+
+         call pde(nnet%dims, popsize, its, mut, cplo, cphi, bmin, bmax, best)
+
+         finish = omp_get_wtime()
+
+      end if
 
       write (*, *) " "
       print '("Optimization took ", f5.2, " minutes")', (finish - start)/60
@@ -204,16 +218,16 @@ contains
       real(8), allocatable :: min_b(:, :), max_b(:, :), diff(:, :)
       real(8), allocatable :: mutant(:)
       real(8), allocatable :: trial(:)
-      real(8), allocatable :: fitness(:), pfit(:), fobj(:)
+      real(8), allocatable :: fitness(:), fobj(:)
       real(8) :: crossp
 
       ! parallel local variables
-      real(8), allocatable :: mutant_loc(:)
+      real(8), allocatable :: mutant_loc(:), pfit(:)
       real(8), allocatable :: trial_loc(:), trial_denorm_loc(:)
       real(8), allocatable :: trials(:, :), trials_denorm(:, :)
       integer :: idx_loc, idxs_loc(3)
-      integer :: id, first, last, nth
-      real(8) :: pfmin
+      integer :: id, first, last
+      real(8) :: pf, pfmin
       integer :: pidx
 
       ! interface for passing arbitrary objective functions
@@ -282,16 +296,16 @@ contains
          !
          ! begin parallel region
          !
-         !$omp PARALLEL PRIVATE(nnet, mutant_loc, trial_loc, trial_denorm_loc, &
-         !$omp idxs_loc, idx_loc, id, first, last) &
-         !$omp SHARED(dims, pop, popsize, mut, crossp, min_b, diff, func, nth, pfit, &
-         !$omp best_idx, trials, trials_denorm) &
-         !$omp NUM_THREADS(8)
+         !$omp PARALLEL DEFAULT(NONE) &
+         !$omp FIRSTPRIVATE(nnet, ysimd) &
+         !$omp PRIVATE(mutant_loc, trial_loc, trial_denorm_loc, idxs_loc,  &
+         !$omp idx_loc, pf, id, first, last) &
+         !$omp SHARED(dims, pop, popsize, mut, crossp, min_b, diff, func,  &
+         !$omp num_threads, pfit, best_idx, trials, trials_denorm)
 
          id = omp_get_thread_num()
-         nth = omp_get_num_threads()
-         first = (id*popsize)/nth + 1
-         last = ((id + 1)*popsize)/nth
+         first = (id*popsize)/num_threads + 1
+         last = ((id + 1)*popsize)/num_threads
 
          ! evaluate the fitness for this thread's indices
          do idx_loc = first, last
@@ -300,15 +314,15 @@ contains
             mutant_loc = c2b1_mutation(idxs_loc, best_idx, idx_loc, dims, pop, mut, mut)
             trial_loc = crossover(mutant_loc, crossp, pop(:, idx_loc), dims)
             trial_denorm_loc = min_b(:, 1) + trial_loc*diff(:, 1)
-
-            pfit(idx_loc) = objfunc(trial_denorm_loc, func)
+            call pobj_nmr(trial_denorm_loc, nnet, ysimd, pf)
+            pfit(idx_loc) = pf
             trials(:, idx_loc) = trial_loc
             trials_denorm(:, idx_loc) = trial_denorm_loc
 
          end do
          !$omp END PARALLEL
 
-         ! update population
+         ! update population for next iteration
          do j = 1, popsize
             if (pfit(j) .lt. fitness(j)) then
                fitness(j) = pfit(j)

@@ -5,6 +5,7 @@ module readpar_mod
    use vario_mod, only: set_sill, set_rotmatrix
    use subs
    use constants
+   use omp_lib, only: omp_get_max_threads
 
    implicit none
 
@@ -283,6 +284,25 @@ contains
       read (lin, *, iostat=test) bmin, bmax
       if (test .ne. 0) stop "ERROR in parameter file"
       write (*, *) 'DE lower and upper bounds: ', bmin, bmax
+
+      ! parallel processing
+      ipara = 0
+      read (lin, *, iostat=test) num_threads
+      if (test .ne. 0) stop "ERROR in parameter file"
+      if (num_threads .eq. 0) then
+         num_threads = 1
+         ipara = 0
+      end if
+      if (num_threads .eq. 1) write (*, *) "performing serial DE"
+      if (num_threads .gt. 1) then
+         ipara = 1
+         write (*, *) "performing parallel DE with", num_threads, "threads"
+      end if
+      if (num_threads .lt. 0) then
+         ipara = 1
+         num_threads = omp_get_max_threads()
+         write (*, *) "performing parallel DE with", num_threads, "threads"
+      end if
 
       ! exp variogram parameters
       read (lin, *, iostat=test) ndir

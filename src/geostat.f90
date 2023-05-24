@@ -103,6 +103,7 @@ module geostat
    real(8) :: mut, cplo, cphi
    integer :: popsize, its
    real(8), allocatable :: best(:)
+   integer :: num_threads, ipara
 
    ! objective iterations output file
    integer :: lobj = 5

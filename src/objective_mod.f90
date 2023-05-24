@@ -238,12 +238,12 @@ contains
       ! end if
 
       if (vario .gt. 0) then
-         call obj_vario(objt_vario)
+         call obj_vario(AL, sill, objt_vario)
          objinit%vario(1) = objt_vario
       end if
 
       if (ivario .gt. 0) then
-         call obj_ivario(objt_ivario)
+         call obj_ivario(AL_i, ivars, objt_ivario)
          objinit%ivario(1) = objt_ivario
       end if
 
@@ -310,14 +310,14 @@ contains
          ! end if
 
          if (vario .gt. 0) then
-            call obj_vario(objt_vario)
+            call obj_vario(AL, sill, objt_vario)
             if (objt_vario .lt. 0.0) objt_vario = objinit%vario(1)
             objdelta%vario(1) = objdelta%vario(1) + &
                                 abs(objinit%vario(1) - objt_vario)
          end if
 
          if (ivario .gt. 0) then
-            call obj_ivario(objt_ivario)
+            call obj_ivario(AL_i, ivars, objt_ivario)
             if (objt_ivario .lt. 0.0) objt_ivario = objinit%ivario(1)
             objdelta%ivario(1) = objdelta%ivario(1) + &
                                  abs(objinit%ivario(1) - objt_ivario)
@@ -394,15 +394,8 @@ contains
 
       real(8), intent(in) :: v(:) ! trial vector
       real(8), intent(out) :: gobjt ! global temp obj value
-      real(8) :: objt_vario
-      real(8) :: objt_ivario
-      real(8) :: objt_runs
-      real(8) :: objt_npt
-      real(8) :: sill
       real(8) :: reg
       integer :: ireal
-      real(8) :: AL(ndata)
-      integer :: AL_i(ndata, ncut)
 
       gobjt = 0.d0
       objt_vario = 0.d0
@@ -422,10 +415,10 @@ contains
          call calc_expsill(AL, sill)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
-         if (vario .gt. 0) call obj_vario(objt_vario)
-         if (ivario .gt. 0) call obj_ivario(objt_ivario)
-         if (runs .gt. 0) call obj_runs(objt_runs)
-         if (npoint .gt. 0) call obj_npoint(objt_npt)
+         if (vario .gt. 0) call obj_vario(AL, sill, objt_vario)
+         if (ivario .gt. 0) call obj_ivario(AL_i, ivars, objt_ivario)
+         if (runs .gt. 0) call obj_runs(AL_i, objt_runs)
+         if (npoint .gt. 0) call obj_npoint(AL_i, objt_npt)
 
          gobjt = gobjt + objt_vario + objt_ivario + objt_runs + objt_npt
 
@@ -435,10 +428,57 @@ contains
 
    end subroutine obj_nmr
 
-   subroutine obj_vario(objt)
+   subroutine pobj_nmr(v, net, simd, gobjt)
+
+      ! parallel network model of regionalization objective
+      ! returns scalar expected objective value
+
+      real(8), intent(in) :: v(:) ! trial vector
+      type(network), intent(inout) :: net
+      real(8), intent(in) :: simd(:, :, :)
+      real(8), intent(out) :: gobjt ! global temp obj value
+      real(8) :: tobj_vario, tobj_ivario, tobj_runs, tobj_npt
+      real(8) :: mix(ndata)
+      integer :: imix(ndata, ncut)
+      real(8) :: reg
+      real(8) :: expsill, iexpsills(ncut)
+      integer :: ireal
+
+      gobjt = 0.d0
+      tobj_vario = 0.d0
+      tobj_ivario = 0.d0
+      tobj_runs = 0.d0
+      tobj_npt = 0.d0
+
+      ! get matrices for this trial vector
+      call vector_to_matrices(v, net)
+
+      ! calculate regularization values if required
+      call calc_regularization(net, reg)
+
+      do ireal = 1, nreals
+
+         call network_forward(net, simd(:, :, ireal), mix, .true.)
+         call calc_expsill(mix, expsill)
+         call indicator_transform(mix, thresholds, ndata, ncut, imix, iexpsills)
+
+         if (vario .gt. 0) call obj_vario(mix, expsill, tobj_vario)
+         if (ivario .gt. 0) call obj_ivario(imix, iexpsills, tobj_ivario)
+         if (runs .gt. 0) call obj_runs(imix, tobj_runs)
+         if (npoint .gt. 0) call obj_npoint(imix, tobj_npt)
+
+         gobjt = gobjt + tobj_vario + tobj_ivario + tobj_runs + tobj_npt
+
+      end do
+
+      gobjt = gobjt/nreals + reg
+
+   end subroutine pobj_nmr
+
+   subroutine obj_vario(mix, expsill, objt)
 
       ! continuous variogram component
-
+      real(8), intent(in) :: mix(:), expsill
       real(8), intent(inout) :: objt
 
       real(8), allocatable :: expvario(:)
@@ -448,7 +488,7 @@ contains
       objt = 0.d0
 
       do i = 1, ndir
-         call update_vario(heads%dirs(i), tails%dirs(i), AL, expvario, sill)
+         call update_vario(heads%dirs(i), tails%dirs(i), mix, expvario, expsill)
          call vario_mse(expvario, target_vario%dirs(i)%vlags, &
                         varlagdist%dirs(i)%vlags, dble(idwpow), mse)
          objt = objt + mse
@@ -459,10 +499,11 @@ contains
 
    end subroutine obj_vario
 
-   subroutine obj_ivario(objt)
+   subroutine obj_ivario(imix, iexpsills, objt)
 
       ! indicator variogram component
-
+      integer, intent(in) :: imix(:, :)
+      real(8), intent(in) :: iexpsills(:)
       real(8), intent(inout) :: objt
 
       real(8), allocatable :: expivario(:)
@@ -473,8 +514,8 @@ contains
 
       do j = 1, ncut
          do i = 1, ndir
-            call update_vario(heads%dirs(i), tails%dirs(i), dble(AL_i(:, j)), &
-                              expivario, ivars(j))
+            call update_vario(heads%dirs(i), tails%dirs(i), dble(imix(:, j)), &
+                              expivario, iexpsills(j))
             call vario_mse(expivario, target_ivario%cuts(j)%dirs(i)%vlags, &
                            varlagdist%dirs(i)%vlags, dble(idwpow), mse)
             objt = objt + mse !*1/ncut
@@ -486,10 +527,10 @@ contains
 
    end subroutine obj_ivario
 
-   subroutine obj_runs(objt)
+   subroutine obj_runs(imix, objt)
 
       ! cumulative run frequency component
-
+      integer, intent(in) :: imix(:, :)
       real(8), intent(inout) :: objt
 
       integer, allocatable :: iarr(:), expruns(:)
@@ -502,7 +543,7 @@ contains
       do i = 1, ncut
          cumruns = 0
          do j = 1, ndh
-            iarr = AL_i(udhidx(j) + 1:udhidx(j + 1), i)
+            iarr = imix(udhidx(j) + 1:udhidx(j + 1), i)
             call binary_runs(iarr, maxrun, expruns)
             cumruns = cumruns + expruns
          end do
@@ -516,10 +557,10 @@ contains
 
    end subroutine obj_runs
 
-   subroutine obj_npoint(objt)
+   subroutine obj_npoint(imix, objt)
 
       ! npoint connectivity component
-
+      integer, intent(in) :: imix(:, :)
       real(8), intent(inout) :: objt
 
       real(8), allocatable :: phi_n(:)
@@ -529,7 +570,7 @@ contains
       objt = 0.d0
 
       do i = 1, ncut
-         call npoint_connect(AL_i(:, i), nstep, ndh, udhidx, phi_n)
+         call npoint_connect(imix(:, i), nstep, ndh, udhidx, phi_n)
          mse = sum((target_npoint(:, i) - phi_n)**2)!/dble(nstep)
          ! objt = objt + mse
          objt = objt + mse*objscale%npoint(i)
@@ -546,7 +587,7 @@ contains
 
       type(network), intent(inout) :: net
       real(8), intent(in) :: ysim(:, :, :)
-      real(8), allocatable, intent(out) :: fimp(:)
+      real(8), allocatable, intent(inout) :: fimp(:)
       real(8), allocatable :: yperm(:, :), yp(:)
       real(8) :: ep, eo, reg
       integer, allocatable :: idxs(:)
@@ -579,10 +620,10 @@ contains
             call calc_expsill(AL, sill)
             call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
-            if (vario .gt. 0) call obj_vario(objt_vario)
-            if (ivario .gt. 0) call obj_ivario(objt_ivario)
-            if (runs .gt. 0) call obj_runs(objt_runs)
-            if (npoint .gt. 0) call obj_npoint(objt_npt)
+            if (vario .gt. 0) call obj_vario(AL, sill, objt_vario)
+            if (ivario .gt. 0) call obj_ivario(AL_i, ivars, objt_ivario)
+            if (runs .gt. 0) call obj_runs(AL_i, objt_runs)
+            if (npoint .gt. 0) call obj_npoint(AL_i, objt_npt)
 
             ep = objt_vario + objt_ivario + objt_runs + objt_npt
 
@@ -591,10 +632,10 @@ contains
             call calc_expsill(AL, sill)
             call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
-            if (vario .gt. 0) call obj_vario(objt_vario)
-            if (ivario .gt. 0) call obj_ivario(objt_ivario)
-            if (runs .gt. 0) call obj_runs(objt_runs)
-            if (npoint .gt. 0) call obj_npoint(objt_npt)
+            if (vario .gt. 0) call obj_vario(AL, sill, objt_vario)
+            if (ivario .gt. 0) call obj_ivario(AL_i, ivars, objt_ivario)
+            if (runs .gt. 0) call obj_runs(AL_i, objt_runs)
+            if (npoint .gt. 0) call obj_npoint(AL_i, objt_npt)
 
             eo = objt_vario + objt_ivario + objt_runs + objt_npt
 
