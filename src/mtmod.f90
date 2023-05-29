@@ -126,7 +126,7 @@ module mtmod
    ! uncomment the parameter definition below.
    ! integer,parameter :: rk_mtmod=selected_real_kind(10,40) ! This is double precision
 
-   integer, parameter, private :: defaultsd = 4357    ! Default seed
+   integer, parameter, private :: defaultsd = 69069    ! Default seed
    integer, parameter, private :: N = 624, N1 = N + 1 ! Period parameters
    integer, dimension(0:N - 1), private :: mt      ! Array for the state vector
    integer, private :: mti = N1
