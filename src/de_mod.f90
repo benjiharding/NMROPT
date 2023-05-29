@@ -4,7 +4,7 @@ module de_mod
                       bmin, bmax, lobj, nnet, ysimd, num_threads
    use objective_mod, only: obj_nmr, pobj_nmr
    use types_mod
-   use mtmod
+   use mtmod, only: grnd
    use constants
    use omp_lib
 

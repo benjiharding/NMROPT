@@ -1,7 +1,7 @@
 module sim_mod
 
    use geostat
-   use mtmod
+   use mtmod, only: grnd
    use kdtree2_module
    use types_mod
    use vario_mod, only: set_sill, set_rotmatrix

@@ -1,6 +1,6 @@
 module subs
 
-   use mtmod
+   use mtmod, only: grnd
    use constants
 
    implicit none

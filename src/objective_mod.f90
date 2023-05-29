@@ -6,7 +6,7 @@ module objective_mod
                         vario_pairs, varmodelpts, set_sill, calc_expsill
    use network_mod, only: network_forward, vector_to_matrices, &
                           calc_regularization
-   use mtmod
+   use mtmod, only: grnd
    use subs
    use constants
 
