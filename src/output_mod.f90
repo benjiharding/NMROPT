@@ -28,11 +28,12 @@ contains
       ! write out the optimized network mixture
       call vector_to_matrices(best, nnet)
       do i = 1, nreals
-         call network_forward(nnet, ysimd(:, :, i), opt_AL(:, i), .true.)
+         call network_forward(nnet, ysimd(:, :, i), opt_AL(:, i), .false.)
          call indicator_transform(opt_AL(:, i), thresholds, ndata, ncut, &
                                   opt_AL_i(:, :, i), best_ivars(:, i))
          do j = 1, ndata
-            write (lout, "(*(g14.8,1x))") dhids(j), xyz(1, j), xyz(2, j), xyz(3, j), opt_AL(j, i)
+            write (lout, "(*(g14.8,1x))") dhids(j), xyz(1, j), xyz(2, j), &
+               xyz(3, j), opt_AL(j, i)
          end do
       end do
 
