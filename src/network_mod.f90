@@ -2,9 +2,7 @@ module network_mod
 
    use geostat, only: nnet, wts
    use types_mod, only: network
-   use mtmod
-   use subs
-   use constants
+   use subs, only: nscore
 
    implicit none
 

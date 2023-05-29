@@ -77,7 +77,8 @@ module geostat
    type(network) :: nnet
 
    ! data parameters
-   real(8), allocatable :: var(:), wts(:) ! variable and weights
+   real(8), allocatable :: var(:), nsvar(:), wts(:) ! variable and weights
+   integer :: itrans ! nscore flag
 
    !
    ! simulation module
