@@ -12,6 +12,7 @@ program main
    ! Contact: bharding@ualberta.ca
 
    use readpar_mod
+   use mtmod
    use sim_mod, only: simulate
    use network_mod, only: init_network
    use objective_mod, only: init_objective
