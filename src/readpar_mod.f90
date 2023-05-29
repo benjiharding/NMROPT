@@ -32,7 +32,7 @@ contains
       real(8) :: xmn, ymn, zmn
       real(8) :: xsiz, ysiz, zsiz
       integer :: nxyz
-      real(8), allocatable :: tmpvar(:)
+      real(8), allocatable :: tmpvar(:), tmpnsvar(:)
 
       ! unit numbers
       lin = 1
@@ -102,10 +102,10 @@ contains
          stop
       end if
 
-      ! ! nscore flag
-      ! read (lin, *, iostat=test) itrans
-      ! if (test .ne. 0) stop "ERROR in parameter file"
-      ! write (*, *) ' normal score transform flag: ', itrans
+      ! nscore flag
+      read (lin, *, iostat=test) itrans
+      if (test .ne. 0) stop "ERROR in parameter file"
+      write (*, *) ' normal score transform flag: ', itrans
 
       ! trimming limits
       read (lin, *, iostat=test) tmin, tmax
@@ -516,6 +516,13 @@ contains
          wts = 1.d0
       end if
 
+      ! nscore input var if required
+      if (itrans .eq. 1) then
+         call nscore(ndata, var, tmin, tmax, 1, wts, tmpnsvar, nsvar, test)
+         if (test .gt. 0) stop "Error in normal score transform"
+         var = nsvar
+      end if
+
       ! get unique drillhole ids - this array is sorted
       udhids = unique(dhids)
 
@@ -535,6 +542,7 @@ contains
       ! start reading Gaussian pool file
       write (*, *) " "
       write (*, *) " reading covariance structure of Gaussian pool..."
+      write (*, *) " "
 
       ! allocate arrays for the pool
       ngvarg = nnet%ld(1) - 1

@@ -14,6 +14,7 @@ contains
       write (99, "(A)") 'START OF PARAMETERS:'
       write (99, "(A)") 'data.dat                          - file with data'
       write (99, "(A)") '1 4 5 6 7 11                      - columns for dh, x, y, z, var and wt'
+      write (99, "(A)") '0                                 - normal score transform var? (0=no, 1=yes)'
       write (99, "(A)") '-1.0e21    1.0e21                 - trimming limits'
       write (99, "(A)") '100                               - number of unconditional realizations'
       write (99, "(A)") '0                                 - simulation type (0=LU (<2500 data), 1=sequential)'
