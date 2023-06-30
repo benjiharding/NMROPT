@@ -2,6 +2,7 @@ module test_suite3
 
    use testdrive, only: new_unittest, unittest_type, error_type, check
    use test_kriging_matrices, only: solve_kriging_matrices
+   use test_sgs, only: test_sequential_simulation
 
    implicit none
 
@@ -23,7 +24,8 @@ contains
                   new_unittest("test_kriging_weight_vector", test_kriging_weight_vector), &
                   ! new_unittest("test_lefthand_side_matrix", test_lefthand_side_matrix), &
                   new_unittest("test_conditional_mean", test_conditional_mean), &
-                  new_unittest("test_conditional_stdev", test_conditional_stdev) &
+                  new_unittest("test_conditional_stdev", test_conditional_stdev), &
+                  new_unittest("test_sequential", test_sequential) &
                   ]
 
    end subroutine collect_suite3
@@ -130,5 +132,24 @@ contains
       if (allocated(error)) return
 
    end subroutine test_conditional_stdev
+
+   subroutine test_sequential(error)
+
+      type(error_type), allocatable, intent(out) :: error
+      integer, parameter :: ndata = 3
+      real(8) :: true(ndata), test(ndata), diff
+      integer :: i
+
+      true = [-0.53980719, 0.05544304, -0.89299043]
+
+      call test_sequential_simulation(test)
+
+      do i = 1, ndata
+         diff = abs(true(i) - test(i))
+         call check(error, (diff .lt. 1e-3), .true.)
+         if (allocated(error)) return
+      end do
+
+   end subroutine test_sequential
 
 end module test_suite3

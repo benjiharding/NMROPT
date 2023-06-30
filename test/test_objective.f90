@@ -1,6 +1,7 @@
 module test_objective
 
    use readpar_mod
+   use mtmod
    use sim_mod, only: simulate
    use network_mod, only: init_network
    use objective_mod, only: init_objective, obj_nmr
