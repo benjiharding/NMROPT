@@ -216,7 +216,7 @@ contains
       call vector_to_matrices(vect_denorm, nnet)
 
       ! the choice of the first realization here is arbitrary
-      call network_forward(nnet, ysimd(:, :, 1), AL, .true.)
+      call network_forward(nnet, ysimd(:, :, 1), AL, .true., nnet%norm)
       call calc_expsill(AL, sill)
       call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
@@ -282,7 +282,7 @@ contains
          call vector_to_matrices(trial_denorm, nnet)
 
          ! evalute the random vector
-         call network_forward(nnet, ysimd(:, :, 1), AL, .true.)
+         call network_forward(nnet, ysimd(:, :, 1), AL, .true., nnet%norm)
          call calc_expsill(AL, sill)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
@@ -412,7 +412,7 @@ contains
 
       do ireal = 1, nreals
 
-         call network_forward(nnet, ysimd(:, :, ireal), AL, .true.)
+         call network_forward(nnet, ysimd(:, :, ireal), AL, .true., nnet%norm)
          call calc_expsill(AL, sill)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
@@ -459,7 +459,7 @@ contains
 
       do ireal = 1, nreals
 
-         call network_forward(net, simd(:, :, ireal), mix, .true.)
+         call network_forward(net, simd(:, :, ireal), mix, .true., nnet%norm)
          call calc_expsill(mix, expsill)
          call indicator_transform(mix, thresholds, ndata, ncut, imix, iexpsills)
 
@@ -597,10 +597,11 @@ contains
 
       ndata = size(ysim, dim=1)
       nfact = net%ld(1)
-      fimp = 0.d0
 
       allocate (yperm(ndata, nfact), yp(ndata))
       allocate (fimp(nfact))
+
+      fimp = 0.d0
 
       idxs = [(i, i=1, ndata)]
       call vector_to_matrices(best, net)
@@ -618,7 +619,7 @@ contains
             yp = yperm(idxs, i)
             yperm(:, i) = yp
 
-            call network_forward(net, yperm, AL, .true.)
+            call network_forward(net, yperm, AL, .true., nnet%norm)
             call calc_expsill(AL, sill)
             call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
@@ -630,7 +631,7 @@ contains
             ep = objt_vario + objt_ivario + objt_runs + objt_npt
 
             ! get the original error
-            call network_forward(net, ysim(:, :, j), AL, .true.)
+            call network_forward(net, ysim(:, :, j), AL, .true., nnet%norm)
             call calc_expsill(AL, sill)
             call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 

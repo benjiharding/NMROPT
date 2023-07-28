@@ -25,7 +25,7 @@ contains
       character(256) :: poolfile
       character(256) :: str
       logical :: testfl
-      integer :: test, i, j, k, ic, iv
+      integer :: test, i, j, k, ic, iv, tmp
       integer :: dhcol, xyzcols(3), varcol, wtcol, ncols
       real(8) :: tmin, tmax
       integer :: nx, ny, nz
@@ -230,6 +230,13 @@ contains
       read (lin, *, iostat=test) nnet%ireg, nnet%regconst
       if (test .ne. 0) stop "ERROR in parameter file"
       write (*, *) '  regularization and constant: ', nnet%ireg, nnet%regconst
+
+      ! batch normalization
+      nnet%norm = .false.
+      read (lin, *, iostat=test) tmp
+      if (test .ne. 0) stop "ERROR in parameter file"
+      if (tmp .gt. 0) nnet%norm = .true.
+      write (*, *) '  normalize layer inputs?: ', nnet%norm
 
       ! Gaussian pool file
       read (lin, '(a256)', iostat=test) poolfile
