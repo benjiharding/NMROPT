@@ -32,6 +32,7 @@ contains
       write (99, "(A)") '16 5 5 5 1                        - network layer dimensions (input + nugget to output layer)'
       write (99, "(A)") '1                                 - network activation func. (1=sigmoid, 2=tanh, 3=relu, 4=linear)'
       write (99, "(A)") '1 0.1                             - network wt regularization (0=none, 1=L1, 2=L2), lambda'
+      write (99, "(A)") '0                                 - normalize layer inputs? (0=no, 1=yes)'
       write (99, "(A)") 'pool.dat                          - file with covariance structs. of Gaussian pool'
       write (99, "(A)") '1  1  1  1                        - objective components: varg, ivarg, runs, npoint'
       write (99, "(A)") '1  1  1  1                        - objective weight:     varg, ivarg, runs, npoint'
