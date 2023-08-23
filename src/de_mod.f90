@@ -189,7 +189,7 @@ contains
          if (.not. present(ifunc)) then
             ! write out the values
             ! write (lobj, "(1(i0,1x),1(g14.8,1x))") i, fobj(i)/fobj(1)
-            write (lobj, "(1(i0,1x),*(g14.8,1x))") i, fobj(i)/fobj(1), &
+            write (lobj, "(1(i0,1x),*(g14.8,1x))") i, fobj(i)/fobj(1), fobj(i), &
                pop_denorm(1, 1), pop_denorm(2, 1), fitness(1), crossp, mut
          end if
 
@@ -365,7 +365,7 @@ contains
          if (.not. present(ifunc)) then
             ! write out the values
             ! write (lobj, "(1(i0,1x),1(g14.8,1x))") i, fobj(i)/fobj(1)
-            write (lobj, "(1(i0,1x),*(g14.8,1x))") i, fobj(i)/fobj(1), &
+            write (lobj, "(1(i0,1x),*(g14.8,1x))") i, fobj(i)/fobj(1), fobj(i), &
                pop_denorm(1, 1), pop_denorm(2, 1), fitness(1), crossp, mut
          end if
 
