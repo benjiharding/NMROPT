@@ -81,11 +81,11 @@ contains
       expvario = 0.5d0*expvario
 
       ! reset values above sill to the sill
-      do i = 1, nl
-         if (expvario(i) .gt. sill) then
-            expvario(i) = sill
-         end if
-      end do
+      ! do i = 1, nl
+      !    if (expvario(i) .gt. sill) then
+      !       expvario(i) = sill
+      !    end if
+      ! end do
 
       ! standardize the sill?
       if (isill .gt. 0) then
