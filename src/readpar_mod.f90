@@ -194,9 +194,10 @@ contains
       ! open the objective file and write headers
       open (lobj, file=objfile, status="UNKNOWN")
       write (lobj, "(A)") "NMR Objective Function"
-      write (lobj, "(i1)") 7
+      write (lobj, "(i1)") 8
       write (lobj, "(A)") "Iteration"
       write (lobj, "(A)") "Objective value"
+      write (lobj, "(A)") "Objective value (unormalized)"
       write (lobj, "(A)") "x1"
       write (lobj, "(A)") "x2"
       write (lobj, "(A)") "Fitness history"
