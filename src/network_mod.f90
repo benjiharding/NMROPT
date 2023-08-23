@@ -46,6 +46,14 @@ contains
          nbias(j - 1) = net%ld(j)
       end do
 
+      ! trainable loc and scale for batch norm
+      if (net%norm) then
+         do j = 2, net%nl
+            ngmma(j - 1) = net%ld(j)
+            nbeta(j - 1) = net%ld(j)
+         end do
+      end if
+
       ! weight matrix indices from cumulative sums
       net%iwts(1) = 0
       net%iwts(2:) = nwts
@@ -59,6 +67,22 @@ contains
       do j = 2, net%nl
          net%ibias(j) = net%ibias(j - 1) + nbias(j - 1)
       end do
+
+      if (net%norm) then
+         ! gamma vector indices from cumulative sums
+         net%igmma(1) = sum(nbias) + sum(nwts)
+         net%igmma(2:) = ngmma
+         do j = 2, net%nl
+            net%igmma(j) = net%igmma(j - 1) + ngmma(j - 1)
+         end do
+
+         ! beta vector indices from cumulative sums
+         net%ibeta(1) = sum(nbias) + sum(nwts) + sum(ngmma)
+         net%ibeta(2:) = nbeta
+         do j = 2, net%nl
+            net%ibeta(j) = net%ibeta(j - 1) + nbeta(j - 1)
+         end do
+      end if
 
       ! allocate network weight and bias matrices
       allocate (net%layer(net%nl - 1)) ! excludes input layer
@@ -76,10 +100,17 @@ contains
          allocate (net%layer(i)%nnmu(net%layer(i)%sb(1)))
          allocate (net%layer(i)%nnsig(net%layer(i)%sb(1)))
 
+         ! allocate loc and scale vectors
+         allocate (net%layer(i)%gmma(net%layer(i)%sb(1)))
+         allocate (net%layer(i)%beta(net%layer(i)%sb(1)))
       end do
 
       ! total number of dimensions
-      net%dims = sum(nwts) + sum(nbias)
+      if (net%norm) then
+         net%dims = sum(nwts) + sum(nbias) + sum(ngmma) + sum(nbeta)
+      else
+         net%dims = sum(nwts) + sum(nbias)
+      end if
 
    end subroutine init_network
 
@@ -144,7 +175,8 @@ contains
          b = spread(b(1, :), 1, size(A_prev, dim=1))
          Zmat = matmul(A_prev, W) + b
          if (norm) then
-            call normalize_input(Zmat, Znorm, net%layer(i)%sw(1), calc_mom=.true.)
+            call normalize_input(Zmat, Znorm, net%layer(i)%sw(1), calc_mom=.true., &
+                                 gmma=net%layer(i)%gmma, beta=net%layer(i)%beta)
          else
             Znorm = Zmat
          end if
@@ -155,7 +187,8 @@ contains
          ! Zmat = matmul(A_prev, W) + b
          ! Amat = f_ptr(Zmat)
          ! if (norm) then
-         !    call normalize_input(Amat, Anorm, net%layer(i)%sw(1), calc_mom=.true.)
+         !    call normalize_input(Amat, Anorm, net%layer(i)%sw(1), calc_mom=.true., &
+         !                         gmma=net%layer(i)%gmma, beta=net%layer(i)%beta)
          !    Amat = Anorm
          ! end if
 
@@ -168,7 +201,9 @@ contains
       ZL = matmul(Amat, WL) + bL
 
       if (norm) then
-         call normalize_input(ZL, ZLnorm, nf=1, calc_mom=.true.)
+         call normalize_input(ZL, ZLnorm, nf=1, calc_mom=.true., &
+                              gmma=net%layer(net%nl - 1)%gmma, &
+                              beta=net%layer(net%nl - 1)%beta)
          ZL = ZLnorm
       end if
 
@@ -204,6 +239,14 @@ contains
                                       shape=(net%layer(i)%sw), order=[2, 1])
          net%layer(i)%nnbias = reshape(vector(net%ibias(i) + 1:net%ibias(i + 1)), &
                                        shape=(net%layer(i)%sb), order=[2, 1])
+         if (net%norm) then
+            ! ! get the gamma and beta vectors
+            ! net%layer(i)%gmma = vector(net%igmma(i) + 1:net%igmma(i + 1))
+            ! net%layer(i)%beta = vector(net%ibeta(i) + 1:net%ibeta(i + 1))
+            net%layer(i)%gmma = 1.d0
+            net%layer(i)%beta = 0.d0
+         end if
+
       end do
 
    end subroutine vector_to_matrices
@@ -232,12 +275,13 @@ contains
 
    end subroutine calc_regularization
 
-   subroutine normalize_input(x, xnorm, nf, calc_mom, mu, sig)
+   subroutine normalize_input(x, xnorm, nf, calc_mom, mu, sig, gmma, beta)
 
       real(8), intent(in) :: x(:, :)
       real(8), allocatable, intent(out) :: xnorm(:, :)
       integer, intent(in) :: nf ! number of features
       logical, intent(in) :: calc_mom
+      real(8), intent(in) :: gmma(:), beta(:)
       real(8), optional :: mu(:), sig(:)
       real(8) :: mean(nf), sumsqs(nf), sigma(nf)
       integer :: i, j, nd
@@ -268,7 +312,7 @@ contains
 
       ! now normalize the input matrix
       do j = 1, nf
-         xnorm(:, j) = (x(:, j) - mean(j))/(sigma(j) + EPSLON)
+         xnorm(:, j) = gmma(j)*((x(:, j) - mean(j))/(sigma(j) + EPSLON)) + beta(j)
       end do
 
    end subroutine normalize_input
