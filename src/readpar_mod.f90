@@ -117,6 +117,14 @@ contains
       if (test .ne. 0) stop "ERROR in parameter file"
       write (*, *) ' number of unconditional realizations: ', nreals
 
+      ! ! try ranking if less than 25 reals are specified?
+      ! irank = 0
+      ! nrank = nreals
+      ! if (nreals .le. 25) then
+      !    irank = 1
+      !    nrank = 100 ! arbitrary, but should be enough
+      ! end if
+
       ! simulation type: 0 = LU, 1 = SGS
       read (lin, *, iostat=test) stype
       if (test .ne. 0) stop "ERROR in parameter file"

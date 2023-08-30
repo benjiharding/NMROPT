@@ -2,7 +2,7 @@ module network_mod
 
    use geostat, only: nnet, wts
    use types_mod, only: network
-   use subs, only: nscore
+   use subs, only: nscore, linear_rescale
    use mtmod, only: grnd
    use constants
 
@@ -171,7 +171,7 @@ contains
          W = transpose(net%layer(i)%nnwts)
          b = transpose(net%layer(i)%nnbias)
 
-         b = 0.d0
+         ! b = 0.d0
 
          ! forward pass - BN prior to activation
          b = spread(b(1, :), 1, size(A_prev, dim=1))
@@ -201,7 +201,7 @@ contains
       bL = transpose(net%layer(net%nl - 1)%nnbias)
       bL = spread(bL(1, :), 1, size(Amat, dim=1))
 
-      bL = 0.d0
+      ! bL = 0.d0
 
       ZL = matmul(Amat, WL) + bL
 
@@ -218,7 +218,7 @@ contains
       ! normal score transform if required
       if (nstrans) then
          do i = 1, size(AL)
-            AL(i) = AL(i) + grnd()*EPSLON ! random despike
+            AL(i) = AL(i) + grnd()*SMALLDBLE ! random despike
          end do
          call nscore(size(AL), AL, dble(-1.0e21), dble(1.0e21), 1, &
                      wts, tmp, vrg, ierr)
@@ -246,10 +246,10 @@ contains
                                        shape=(net%layer(i)%sb), order=[2, 1])
          if (net%norm) then
             ! get the gamma and beta vectors
-            ! net%layer(i)%gmma = vector(net%igmma(i) + 1:net%igmma(i + 1))
-            ! net%layer(i)%beta = vector(net%ibeta(i) + 1:net%ibeta(i + 1))
-            net%layer(i)%gmma = 1.d0
-            net%layer(i)%beta = 0.d0
+            net%layer(i)%gmma = vector(net%igmma(i) + 1:net%igmma(i + 1))
+            net%layer(i)%beta = vector(net%ibeta(i) + 1:net%ibeta(i + 1))
+            ! net%layer(i)%gmma = 1.d0
+            ! net%layer(i)%beta = 0.d0
          end if
 
       end do

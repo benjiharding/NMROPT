@@ -96,6 +96,7 @@ module geostat
    integer :: rseed ! random seed
    integer :: nreals ! number of realizations
    integer :: stype ! simulation type
+   integer :: irank, nrank ! rank realizatons?
    real(8), allocatable :: ysimd(:, :, :) !(ndata, ngvarg + 1, nreals)
 
    !
