@@ -1,5 +1,8 @@
 program main
 
+   !
+   ! NMROPT
+   !
    ! Network model of regionalization optimzation. Weight
    ! and bias values are optimized using differential evolution
    ! for the user defined network architecture and specified
