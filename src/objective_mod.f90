@@ -425,9 +425,42 @@ contains
 
       end do
 
-      gobjt = gobjt/nreals + reg
+      gobjt = (gobjt + reg)/nreals
 
    end subroutine obj_nmr
+
+   subroutine obj_nmr_vect(v, gobjt)
+
+      ! network model of regionalization objective
+      ! returns scalar expected objective value
+
+      ! this version has no components, rather it is
+      ! data reconstruction error
+
+      real(8), intent(in) :: v(:) ! trial vector
+      real(8), intent(out) :: gobjt ! global temp obj value
+      real(8) :: sqerr, reg
+      integer :: ireal
+
+      gobjt = 0.d0
+
+      ! get matrices for this trial vector
+      call vector_to_matrices(v, nnet)
+
+      ! calculate regularization values if required
+      call calc_regularization(nnet, reg)
+
+      do ireal = 1, nreals
+
+         call network_forward(nnet, ysimd(:, :, ireal), AL, .true., nnet%norm)
+         sqerr = sum((AL - var)**2)
+         gobjt = gobjt + sqerr
+
+      end do
+
+      gobjt = (gobjt + reg)/nreals
+
+   end subroutine obj_nmr_vect
 
    subroutine pobj_nmr(v, net, simd, gobjt)
 
@@ -472,10 +505,45 @@ contains
 
       end do
 
-      ! gobjt = gobjt/nreals + reg
       gobjt = (gobjt + reg)/nreals
 
    end subroutine pobj_nmr
+
+   subroutine pobj_nmr_vect(v, net, simd, gobjt)
+
+      ! parallel network model of regionalization objective
+      ! returns scalar expected objective value
+
+      ! this version has no components, rather it is
+      ! data reconstruction error
+
+      real(8), intent(in) :: v(:) ! trial vector
+      type(network), intent(inout) :: net
+      real(8), intent(in) :: simd(:, :, :)
+      real(8), intent(out) :: gobjt ! global temp obj value
+      real(8) :: mix(ndata)
+      real(8) :: sqerr, reg
+      integer :: ireal
+
+      gobjt = 0.d0
+
+      ! get matrices for this trial vector
+      call vector_to_matrices(v, net)
+
+      ! calculate regularization values if required
+      call calc_regularization(net, reg)
+
+      do ireal = 1, nreals
+
+         call network_forward(net, simd(:, :, ireal), mix, .true., nnet%norm)
+         sqerr = sum((mix - var)**2)
+         gobjt = gobjt + sqerr
+
+      end do
+
+      gobjt = (gobjt + reg)/nreals
+
+   end subroutine pobj_nmr_vect
 
    subroutine obj_vario(mix, expsill, objt)
 
@@ -497,7 +565,6 @@ contains
       end do
 
       objt = objt*objscale(1)
-      ! objt = objt*objscale%vario(1)
 
    end subroutine obj_vario
 
@@ -520,12 +587,11 @@ contains
                               expivario, iexpsills(j))
             call vario_mse(expivario, target_ivario%cuts(j)%dirs(i)%vlags, &
                            varlagdist%dirs(i)%vlags, dble(idwpow), mse)
-            objt = objt + mse !*1/ncut
+            objt = objt + mse
          end do
       end do
 
       objt = objt*objscale(2)
-      ! objt = objt*objscale%ivario(1)
 
    end subroutine obj_ivario
 
@@ -549,12 +615,10 @@ contains
             call binary_runs(iarr, maxrun, expruns)
             cumruns = cumruns + expruns
          end do
-         mse = sum((dble(target_runs(:, i)) - dble(cumruns))**2)!/dble(maxrun)
+         mse = sum((dble(target_runs(:, i)) - dble(cumruns))**2)
          objt = objt + mse
-         ! objt = objt + mse*objscale%runs(i)
       end do
 
-      ! objt = objt/ncut
       objt = objt*objscale(3)
 
    end subroutine obj_runs
@@ -573,12 +637,10 @@ contains
 
       do i = 1, ncut
          call npoint_connect(imix(:, i), nstep, ndh, udhidx, phi_n)
-         mse = sum((target_npoint(:, i) - phi_n)**2)!/dble(nstep)
+         mse = sum((target_npoint(:, i) - phi_n)**2)
          objt = objt + mse
-         ! objt = objt + mse*objscale%npoint(i)
       end do
 
-      ! objt = objt/ncut
       objt = objt*objscale(4)
 
    end subroutine obj_npoint

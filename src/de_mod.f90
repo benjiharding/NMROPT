@@ -2,7 +2,7 @@ module de_mod
 
    use geostat, only: mut, cplo, cphi, popsize, its, best, &
                       bmin, bmax, lobj, nnet, ysimd, num_threads
-   use objective_mod, only: obj_nmr, pobj_nmr
+   use objective_mod, only: obj_nmr, obj_nmr_vect, pobj_nmr, pobj_nmr_vect
    use types_mod
    use mtmod, only: grnd
    use constants
@@ -315,6 +315,7 @@ contains
             trial_loc = crossover(mutant_loc, crossp, pop(:, idx_loc), dims)
             trial_denorm_loc = min_b(:, 1) + trial_loc*diff(:, 1)
             call pobj_nmr(trial_denorm_loc, nnet, ysimd, pf)
+            ! call pobj_nmr_vect(trial_denorm_loc, nnet, ysimd, pf)
             pfit(idx_loc) = pf
             trials(:, idx_loc) = trial_loc
             trials_denorm(:, idx_loc) = trial_denorm_loc
@@ -483,6 +484,7 @@ contains
 
       ! default behaviour
       if (ifunc .eq. 0) call obj_nmr(z, v)
+      ! if (ifunc .eq. 0) call obj_nmr_vect(z, v)
 
       ! unit testing
       if (ifunc .eq. 1) call ackley(z, v)
