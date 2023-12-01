@@ -114,5 +114,6 @@ module geostat
    ! sequences module
    !
    integer :: iruns, inpoint
+   integer :: t_iruns, t_inpoint
 
 end module geostat

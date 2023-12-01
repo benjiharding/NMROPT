@@ -23,6 +23,8 @@ contains
       character(256), parameter :: parfile = 'nmropt.par'
       character(256) :: datafile
       character(256) :: poolfile
+      character(256) :: runsfile
+      character(256) :: npointfile
       character(256) :: str
       logical :: testfl
       integer :: test, i, j, k, ic, iv, tmp
@@ -130,20 +132,20 @@ contains
       if (test .ne. 0) stop "ERROR in parameter file"
       write (*, *) ' simulation type: ', stype
 
-      ! grid definition
-      read (lin, *, iostat=test) nx, xmn, xsiz
-      if (test .ne. 0) stop "ERROR in parameter file"
-      write (*, '(a,i0,x,2(g13.6,x))') ' nx, xmn, xsiz: ', nx, xmn, xsiz
+      ! ! grid definition
+      ! read (lin, *, iostat=test) nx, xmn, xsiz
+      ! if (test .ne. 0) stop "ERROR in parameter file"
+      ! write (*, '(a,i0,x,2(g13.6,x))') ' nx, xmn, xsiz: ', nx, xmn, xsiz
 
-      read (lin, *, iostat=test) ny, ymn, ysiz
-      if (test .ne. 0) stop "ERROR in parameter file"
-      write (*, '(a,i0,x,2(g13.6,x))') ' ny, ymn, ysiz: ', ny, ymn, ysiz
+      ! read (lin, *, iostat=test) ny, ymn, ysiz
+      ! if (test .ne. 0) stop "ERROR in parameter file"
+      ! write (*, '(a,i0,x,2(g13.6,x))') ' ny, ymn, ysiz: ', ny, ymn, ysiz
 
-      read (lin, *, iostat=test) nz, zmn, zsiz
-      if (test .ne. 0) stop "ERROR in parameter file"
-      write (*, '(a,i0,x,2(g13.6,x))') ' nz, zmn, zsiz: ', nz, zmn, zsiz
+      ! read (lin, *, iostat=test) nz, zmn, zsiz
+      ! if (test .ne. 0) stop "ERROR in parameter file"
+      ! write (*, '(a,i0,x,2(g13.6,x))') ' nz, zmn, zsiz: ', nz, zmn, zsiz
 
-      nxyz = nx*ny*nz
+      ! nxyz = nx*ny*nz
 
       ! random number seed
       read (lin, *, iostat=test) rseed
@@ -272,6 +274,17 @@ contains
       if (npoint .gt. 0) write (*, *) ' considering npoint connectivity'
       if (npoint .gt. 0) write (*, *) '   user scaling factor = ', userfac(4)
 
+      ! number of cutoffs
+      read (lin, *, iostat=test) ncut
+      if (test .ne. 0) stop "ERROR in parameter file"
+
+      ! thresholds
+      allocate (thresholds(ncut), stat=test)
+      if (test .ne. 0) stop "allocation failed due to insufficient memory!"
+      read (lin, *, iostat=test) thresholds
+      if (test .ne. 0) stop "ERROR in parameter file"
+      write (*, *) '  thresholds: ', thresholds
+
       ! runs
       read (lin, *, iostat=test) iruns
       if (test .ne. 0) stop "ERROR in parameter file"
@@ -280,6 +293,35 @@ contains
       read (lin, *, iostat=test) maxrun
       if (test .ne. 0) stop "ERROR in parameter file"
       if (runs .gt. 0) write (*, *) ' max number of runs: ', maxrun
+
+      ! target runs from file?
+      read (lin, *, iostat=test) t_iruns
+      if (test .ne. 0) stop "ERROR in parameter file"
+      read (lin, '(a256)', iostat=test) runsfile
+      if (test .ne. 0) stop "ERROR in parameter file"
+      call chknam(runsfile, 256)
+      if (t_iruns .gt. 0) then
+         inquire (file=runsfile, exist=testfl)
+         if (.not. testfl) stop "ERROR - the data file does not exist"
+         ! load targets if the file is correct
+         open (ltrg, file=runsfile, status='OLD')
+         read (ltrg, *)
+         read (ltrg, *, iostat=test) ncols
+         if (test .ne. 0) stop "ERROR in data file"
+         if (ncols .ne. ncut) stop "Number of columns in target file must match &
+&         number of thresholds!"
+         ! restart target file
+         rewind (ltrg)
+         do i = 1, ncols + 2
+            read (ltrg, *, iostat=test)
+         end do
+         allocate (target_runs(maxrun, ncut), stat=test)
+         if (test .ne. 0) stop "allocation failed due to insufficient memory!"
+         do i = 1, maxrun
+            read (ltrg, *, iostat=test) target_runs(i, :)
+         end do
+         close (ltrg)
+      end if
 
       ! npoint connectivity
       read (lin, *, iostat=test) inpoint
@@ -290,6 +332,35 @@ contains
       read (lin, *, iostat=test) nstep
       if (test .ne. 0) stop "ERROR in parameter file"
       if (npoint .gt. 0) write (*, *) ' max number of connected steps: ', nstep
+
+      ! target npoint from file?
+      read (lin, *, iostat=test) t_inpoint
+      if (test .ne. 0) stop "ERROR in parameter file"
+      read (lin, '(a256)', iostat=test) npointfile
+      if (test .ne. 0) stop "ERROR in parameter file"
+      call chknam(npointfile, 256)
+      if (t_inpoint .gt. 0) then
+         inquire (file=npointfile, exist=testfl)
+         if (.not. testfl) stop "ERROR - the data file does not exist"
+         ! load targets if the file is correct
+         open (ltrg, file=npointfile, status='OLD')
+         read (ltrg, *)
+         read (ltrg, *, iostat=test) ncols
+         if (test .ne. 0) stop "ERROR in data file"
+         if (ncols .ne. ncut) stop "Number of columns in target file must match &
+&         number of thresholds!"
+         ! restart target file
+         rewind (ltrg)
+         do i = 1, ncols + 2
+            read (ltrg, *, iostat=test)
+         end do
+         allocate (target_npoint(nstep, ncut), stat=test)
+         if (test .ne. 0) stop "allocation failed due to insufficient memory!"
+         do i = 1, nstep
+            read (ltrg, *, iostat=test) target_npoint(i, :)
+         end do
+         close (ltrg)
+      end if
 
       ! differential evolution
       read (lin, *, iostat=test) mut, cplo, cphi, popsize, its
@@ -352,17 +423,9 @@ contains
       read (lin, *, iostat=test) nivarg
       if (test .ne. 0) stop "ERROR in parameter file"
       write (*, *) '  number of indicator variogram models: ', nivarg
-      ncut = nivarg
 
       allocate (ivmod(ncut), stat=test)
       if (test .ne. 0) stop "allocation failed due to insufficient memory!"
-
-      ! thresholds
-      allocate (thresholds(ncut), stat=test)
-      if (test .ne. 0) stop "allocation failed due to insufficient memory!"
-      read (lin, *, iostat=test) thresholds
-      if (test .ne. 0) stop "ERROR in parameter file"
-      write (*, *) '  thresholds: ', thresholds
 
       ! IDW power for weighting
       read (lin, *, iostat=test) idwpow

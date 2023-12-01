@@ -118,25 +118,29 @@ contains
 
       ! cumulative runs target
       if (runs .gt. 0) then
-         allocate (target_runs(maxrun, ncut))
-         target_runs(:, :) = 0
-         do i = 1, ncut
-            do j = 1, ndh
-               tmparr = iz(udhidx(j) + 1:udhidx(j + 1), i)
-               call binary_runs(tmparr, maxrun, tmpruns)
-               target_runs(:, i) = target_runs(:, i) + tmpruns
+         if (t_iruns .eq. 0) then ! calculate from data, not file
+            allocate (target_runs(maxrun, ncut))
+            target_runs(:, :) = 0
+            do i = 1, ncut
+               do j = 1, ndh
+                  tmparr = iz(udhidx(j) + 1:udhidx(j + 1), i)
+                  call binary_runs(tmparr, maxrun, tmpruns)
+                  target_runs(:, i) = target_runs(:, i) + tmpruns
+               end do
             end do
-         end do
+         end if
       end if
 
       ! npoint connectivity target
       if (npoint .gt. 0) then
-         allocate (target_npoint(nstep, ncut))
-         target_npoint(:, :) = 0.d0
-         do i = 1, ncut
-            call npoint_connect(iz(:, i), nstep, ndh, udhidx, tmpnpt)
-            target_npoint(:, i) = tmpnpt
-         end do
+         if (t_inpoint .eq. 0) then ! calculate from data, not file
+            allocate (target_npoint(nstep, ncut))
+            target_npoint(:, :) = 0.d0
+            do i = 1, ncut
+               call npoint_connect(iz(:, i), nstep, ndh, udhidx, tmpnpt)
+               target_npoint(:, i) = tmpnpt
+            end do
+         end if
       end if
 
       ! scale the components
