@@ -49,7 +49,7 @@ module geostat
    real(8) :: idwpow
    integer :: nvarg, nivarg, isill, ndir, ncut
    integer, allocatable :: udiridx(:), ulagidx(:) ! array indices
-   integer :: e, f, g, h, nc
+   integer :: nc
 
    ! run parameters
    integer :: maxrun, nstep ! maximum runs and connected steps

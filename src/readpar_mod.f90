@@ -30,10 +30,6 @@ contains
       integer :: test, i, j, k, ic, iv, tmp
       integer :: dhcol, xyzcols(3), varcol, wtcol, ncols
       real(8) :: tmin, tmax
-      integer :: nx, ny, nz
-      real(8) :: xmn, ymn, zmn
-      real(8) :: xsiz, ysiz, zsiz
-      integer :: nxyz
       real(8), allocatable :: tmpvar(:), tmpnsvar(:)
 
       ! unit numbers
