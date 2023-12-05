@@ -207,42 +207,51 @@ contains
       ! parameters
       type(lags), intent(in) :: head, tail
       type(variogram), intent(in) :: vm
-      integer, intent(in) :: izval(:), nstep
+      integer, intent(in) :: nstep
+      integer, intent(in) :: izval(:)
 
       ! result
       real(8), allocatable, intent(out) :: phi(:)
 
       ! local variables
-      real(8) :: exp, h, cov, a(3), b(3)
+      integer :: iz(size(izval))
+      real(8) :: exp, cov, a(3), b(3)
       real(8) :: std1, std2, mu
       integer :: i, j, n, np
 
       allocate (phi(nstep))
 
+      ! indicators above threshold?
+      if (inpoint .gt. 0) then
+         iz = 1 - izval
+      else
+         iz = izval
+      end if
+
       ! phi(1) is mean of all indicators
       exp = 0.d0
       j = 0
-      do i = 1, size(izval)
-         exp = exp + izval(i)
+      do i = 1, size(iz)
+         exp = exp + iz(i)
          j = j + 1
       end do
       phi(1) = exp/j
 
       do n = 2, nstep
 
-         np = size(head%lags(n)%idxs)
-         a = [xyz(:, tail%lags(n)%idxs(1))]
-         b = [xyz(:, head%lags(n)%idxs(1))]
-         std1 = stdev_int(izval(tail%lags(n)%idxs))
-         std2 = stdev_int(izval(head%lags(n)%idxs))
+         np = size(head%lags(n - 1)%idxs)
+         a = [xyz(:, tail%lags(n - 1)%idxs(1))]
+         b = [xyz(:, head%lags(n - 1)%idxs(1))]
+         std1 = stdev_int(iz(tail%lags(n - 1)%idxs))
+         std2 = stdev_int(iz(head%lags(n - 1)%idxs))
          cov = get_cov(vm, a, b)
          cov = cov*std1*std2
 
+         mu = 0.d0
          do j = 1, np
-            mu = mu + izval(tail%lags(n)%idxs(j))
-            mu = mu + izval(head%lags(n)%idxs(j))
+            mu = mu + iz(tail%lags(n - 1)%idxs(j)) + iz(head%lags(n - 1)%idxs(j))
          end do
-         mu = mu/(2*np)
+         mu = mu/(2.d0*dble(np))
 
          phi(n) = phi(n - 1)*mu + cov
 
