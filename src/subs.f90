@@ -1068,4 +1068,40 @@ contains
 
    end function linear_rescale
 
+   function stdev(x) result(sigma)
+
+      real(8), intent(in) :: x(:)
+      real(8) :: mu, sigma, sumsqs
+      integer :: i, n
+
+      n = size(x)
+      do i = 1, n
+         mu = mu + x(i)
+         sumsqs = sumsqs + x(i)*x(i)
+      end do
+
+      mu = mu/n
+      sumsqs = sumsqs/n
+      sigma = sqrt(sumsqs - mu*mu)
+
+   end function stdev
+
+   function stdev_int(x) result(sigma)
+
+      integer, intent(in) :: x(:)
+      real(8) :: mu, sigma, sumsqs
+      integer :: i, n
+
+      n = size(x)
+      do i = 1, n
+         mu = mu + x(i)
+         sumsqs = sumsqs + x(i)*x(i)
+      end do
+
+      mu = mu/n
+      sumsqs = sumsqs/n
+      sigma = sqrt(sumsqs - mu*mu)
+
+   end function stdev_int
+
 end module subs
