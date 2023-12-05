@@ -1082,7 +1082,7 @@ contains
 
       mu = mu/n
       sumsqs = sumsqs/n
-      sigma = sqrt(sumsqs - mu*mu)
+      sigma = sqrt(max(0.0, sumsqs - mu*mu))
 
    end function stdev
 
@@ -1100,7 +1100,7 @@ contains
 
       mu = mu/n
       sumsqs = sumsqs/n
-      sigma = sqrt(sumsqs - mu*mu)
+      sigma = sqrt(max(0.0, sumsqs - mu*mu))
 
    end function stdev_int
 
