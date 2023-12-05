@@ -1,7 +1,9 @@
 module sequences_mod
 
-   use geostat, only: iruns, inpoint
-   use constants
+   use geostat
+   use types_mod, only: lags, variogram
+   use covasubs, only: get_cov
+   use subs
 
    implicit none
 
@@ -191,5 +193,61 @@ contains
       phi = prod/size(AL_i)
 
    end subroutine npoint_connect
+
+   subroutine binary_runs3d()
+   end subroutine binary_runs3d
+
+   subroutine npoint_connect3d(head, tail, izval, nstep, vm, phi)
+
+      ! N-point connectivity function in the tertiary direction
+      ! specified by the experimental variogram search parameters.
+      ! The lag vector h is assumed to be the mean composite length
+      ! and tolerance parameters are taken from the search parameters.
+
+      ! parameters
+      type(lags), intent(in) :: head, tail
+      type(variogram), intent(in) :: vm
+      integer, intent(in) :: izval(:), nstep
+
+      ! result
+      real(8), allocatable, intent(out) :: phi(:)
+
+      ! local variables
+      real(8) :: exp, h, cov, a(3), b(3)
+      real(8) :: std1, std2, mu
+      integer :: i, j, n, np
+
+      allocate (phi(nstep))
+
+      ! phi(1) is mean of all indicators
+      exp = 0.d0
+      j = 0
+      do i = 1, size(izval)
+         exp = exp + izval(i)
+         j = j + 1
+      end do
+      phi(1) = exp/j
+
+      do n = 2, nstep
+
+         np = size(head%lags(n)%idxs)
+         a = [xyz(:, tail%lags(n)%idxs(1))]
+         b = [xyz(:, head%lags(n)%idxs(1))]
+         std1 = stdev_int(izval(tail%lags(n)%idxs))
+         std2 = stdev_int(izval(head%lags(n)%idxs))
+         cov = get_cov(vm, a, b)
+         cov = cov*std1*std2
+
+         do j = 1, np
+            mu = mu + izval(tail%lags(n)%idxs(j))
+            mu = mu + izval(head%lags(n)%idxs(j))
+         end do
+         mu = mu/(2*np)
+
+         phi(n) = phi(n - 1)*mu + cov
+
+      end do
+
+   end subroutine npoint_connect3d
 
 end module sequences_mod

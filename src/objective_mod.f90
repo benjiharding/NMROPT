@@ -1,7 +1,7 @@
 module objective_mod
 
    use geostat
-   use sequences_mod, only: binary_runs, npoint_connect
+   use sequences_mod, only: binary_runs, npoint_connect, npoint_connect3d
    use vario_mod, only: update_vario, vario_mse, indicator_transform, &
                         vario_pairs, varmodelpts, set_sill, calc_expsill
    use network_mod, only: network_forward, vector_to_matrices, &
@@ -134,12 +134,21 @@ contains
       ! npoint connectivity target
       if (npoint .gt. 0) then
          if (t_inpoint .eq. 0) then ! calculate from data, not file
+
             allocate (target_npoint(nstep, ncut))
             target_npoint(:, :) = 0.d0
+
+            ! do i = 1, ncut
+            !    call npoint_connect(iz(:, i), nstep, ndh, udhidx, tmpnpt)
+            !    target_npoint(:, i) = tmpnpt
+            ! end do
+
             do i = 1, ncut
-               call npoint_connect(iz(:, i), nstep, ndh, udhidx, tmpnpt)
+               call npoint_connect3d(heads%dirs(3), tails%dirs(3), iz(:, i), &
+                                     nstep, ivmod(i), tmpnpt)
                target_npoint(:, i) = tmpnpt
             end do
+
          end if
       end if
 
@@ -639,8 +648,15 @@ contains
 
       objt = 0.d0
 
+      ! do i = 1, ncut
+      !    call npoint_connect(imix(:, i), nstep, ndh, udhidx, phi_n)
+      !    mse = sum((target_npoint(:, i) - phi_n)**2)
+      !    objt = objt + mse
+      ! end do
+
       do i = 1, ncut
-         call npoint_connect(imix(:, i), nstep, ndh, udhidx, phi_n)
+         call npoint_connect3d(heads%dirs(3), tails%dirs(3), imix(:, i), &
+                               nstep, ivmod(i), phi_n)
          mse = sum((target_npoint(:, i) - phi_n)**2)
          objt = objt + mse
       end do
