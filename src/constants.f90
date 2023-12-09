@@ -7,6 +7,7 @@ module constants
    real(8), parameter :: SMALLDBLE = 1d-6
    real(8), parameter :: BIGDBLE = 1d21
    real(8), parameter :: DEG2RAD = PI/180d0
+   real(8), parameter :: RAD2DEG = 180d0/PI
    integer, parameter :: MAXNST = 4
    integer, parameter :: MAXGNST = 1 ! max nst for Gaussian variograms
    real(8), parameter :: MINCOV = 1e-3

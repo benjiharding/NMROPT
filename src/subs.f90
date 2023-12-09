@@ -1068,4 +1068,22 @@ contains
 
    end function linear_rescale
 
+   function azmdip(a, b) result(ad)
+
+      ! returns azm within range [0, 180], [-180, 0]
+
+      real(8), intent(in) :: a(3), b(3)
+      real(8) :: azm, dip
+      real(8) :: ba(3)
+      real(8) :: ad(2)
+
+      ba = b - a
+      azm = 90.d0 - atan2(ba(2), ba(1))*RAD2DEG
+      if (azm .gt. 180.d0) azm = azm - 360.d0
+      dip = atan2(ba(3), sqrt(ba(1)**2 + ba(2)**2))*RAD2DEG
+      ad(1) = azm
+      ad(2) = dip
+
+   end function azmdip
+
 end module subs

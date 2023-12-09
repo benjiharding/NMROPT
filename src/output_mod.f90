@@ -132,6 +132,7 @@ contains
             do ic = 1, ncut
                cumruns = 0
                do j = 1, ndh
+                  if (seqbool(j) .eq. 0) cycle
                   call binary_runs(opt_AL_i(udhidx(j) + 1:udhidx(j + 1), ic, i), &
                                    maxrun, expruns)
                   cumruns = cumruns + expruns
@@ -209,6 +210,20 @@ contains
                end do
             end do
          end if
+
+         ! write out DH orientations and flag for sequnce inclusion
+         tempfl = trim(prefix)//"dh_orient.out"
+         open (ldbg, file=tempfl, status="UNKNOWN")
+         write (ldbg, "(A)") "DH Orientations"
+         write (ldbg, "(i1)") 4
+         write (ldbg, "(A)") "DHID"
+         write (ldbg, "(A)") "Azm"
+         write (ldbg, "(A)") "Dip"
+         write (ldbg, "(A)") "Flag"
+         do i = 1, ndh
+            write (ldbg, "(*(g14.8,1x))") i, dhazmdip(i, 1), dhazmdip(i, 2), seqbool(i)
+         end do
+
       end if
 
    end subroutine write_files

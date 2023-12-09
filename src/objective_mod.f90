@@ -22,6 +22,9 @@ contains
       integer, allocatable :: headt(:), tailt(:), lagt(:)
       integer, allocatable :: lag_idxs(:), sub_idxs(:), valid_idxs(:)
       real(8), allocatable :: tmpbins(:), tmpnpt(:)
+      real(8) :: a(3), b(3), ad(2)
+      real(8) :: azm, atol, dip, dtol, tmpazm, tmpdip
+      logical :: acond1, acond2, dcond1, dcond2
       integer :: maxlags
       integer :: i, ii, j, k, nl
 
@@ -35,6 +38,51 @@ contains
       ! get the start/end dh indices in the mixture array
       allocate (udhidx(ndh + 1))
       udhidx = cumsum(dhlens)
+
+      ! get drillhole orientations
+      allocate (dhazmdip(ndh, 2), seqbool(ndh))
+      azm = expvar(3)%azm
+      atol = max(expvar(3)%atol, 30.d0) ! increase from experimental
+      dip = expvar(3)%dip
+      dtol = max(expvar(3)%dtol, 45.d0) ! increase from experimental
+      seqbool = 0
+      do i = 1, ndh
+         a = xyz(:, udhidx(i) + 1)
+         b = xyz(:, udhidx(i + 1))
+         ad = azmdip(a, b) ! assuming no deviation...
+         dhazmdip(i, :) = ad
+         ! are we looking for vertical holes?
+         if (abs(dip) .gt. 60.d0) then
+            ! if so we'll ignore the azimuth as it is unstable
+            if (abs(ad(2)) .gt. 60.d0) then
+               seqbool(i) = 1 ! +/- 30 degrees from 90
+            end if
+         end if
+         ! flag drillholes within azm/dip tolerances of the
+         ! vertical variogram diretion considering both
+         ! directions ie. [135, 40] and [-45, -40]
+         acond1 = .false.
+         acond2 = .false.
+         dcond1 = .false.
+         dcond2 = .false.
+         ! same direction to dir3 (h)
+         if (ad(1) > azm - atol .and. ad(1) < azm + atol) acond1 = .true.
+         if (ad(2) > dip - dtol .and. ad(2) < dip + dtol) dcond1 = .true.
+         ! opposite direction to dir3 (-h)
+         if (ad(1) > 0.d0) then
+            tmpazm = ad(1) - 180.d0
+            tmpdip = ad(2)*(-1)
+         else
+            tmpazm = ad(1) + 180.d0
+            tmpdip = ad(2)*(-1)
+         end if
+         if (tmpazm > azm - atol .and. tmpazm < azm + atol) acond2 = .true.
+         if (tmpdip > dip - dtol .and. tmpdip < dip + dtol) dcond2 = .true.
+         if (acond1 .and. dcond1) seqbool(i) = 1
+         if (acond2 .and. dcond2) seqbool(i) = 1
+      end do
+
+      if (sum(seqbool) .lt. 1) stop "Tertiary variogram direction not inline with drilling!"
 
       ! get variogram lag and pair data
       allocate (heads%dirs(ndir), tails%dirs(ndir))
@@ -123,6 +171,7 @@ contains
             target_runs(:, :) = 0
             do i = 1, ncut
                do j = 1, ndh
+                  if (seqbool(j) .eq. 0) cycle
                   tmparr = iz(udhidx(j) + 1:udhidx(j + 1), i)
                   call binary_runs(tmparr, maxrun, tmpruns)
                   target_runs(:, i) = target_runs(:, i) + tmpruns
@@ -615,6 +664,7 @@ contains
       do i = 1, ncut
          cumruns = 0
          do j = 1, ndh
+            if (seqbool(j) .eq. 0) cycle
             iarr = imix(udhidx(j) + 1:udhidx(j + 1), i)
             call binary_runs(iarr, maxrun, expruns)
             cumruns = cumruns + expruns

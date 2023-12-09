@@ -1,6 +1,6 @@
 module sequences_mod
 
-   use geostat, only: iruns, inpoint
+   use geostat, only: iruns, inpoint, seqbool
    use constants
 
    implicit none
@@ -132,14 +132,13 @@ contains
 
       ! local variables
       integer, allocatable :: temp_idxs(:), idxs(:)
-      integer, allocatable :: iarr(:), arr(:), lcount(:)
+      integer, allocatable :: iarr(:), arr(:)
       real(8), allocatable :: prod(:)
-      integer :: i, j, k, n, nx
+      integer :: i, j, k, n, nx, lcount
       real(8) :: p
 
-      allocate (phi(nstep), prod(nstep), lcount(nstep))
+      allocate (phi(nstep), prod(nstep))
       prod = 0.d0
-      lcount = 0
 
       ! loop over connected steps
       do n = 1, nstep
@@ -152,8 +151,10 @@ contains
          end do
 
          ! number of drillholes
+         lcount = 0
          do k = 1, ndh
 
+            if (seqbool(k) .eq. 0) cycle
             iarr = AL_i(udhidx(k) + 1:udhidx(k + 1))
             nx = size(iarr)
 
@@ -177,18 +178,19 @@ contains
                ! update products
                prod(n) = prod(n) + p
 
-               ! increment lag counter
-               lcount(n) = lcount(n) + 1
-
             end do
+
+            ! increment lag counter
+            lcount = lcount + nx
+
          end do
 
          deallocate (temp_idxs)
 
       end do
 
-      ! phi = prod/dble(lcount)
-      phi = prod/size(AL_i)
+      phi = prod/dble(lcount)
+      ! phi = prod/size(AL_i)
 
    end subroutine npoint_connect
 
