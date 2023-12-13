@@ -53,6 +53,8 @@ contains
          valid_idxs = pack([(ii, ii=1, expvar(i)%nlags + 1)], tmpbins(:) .lt. HUGE(tmpbins))
          nl = size(valid_idxs)
 
+         if (size(valid_idxs, dim=1) .lt. 1) stop "No defined experimental lags"
+
          ! only allocate the number of defined lags
          allocate (varazm%dirs(i)%vlags(nl))
          allocate (vardip%dirs(i)%vlags(nl))

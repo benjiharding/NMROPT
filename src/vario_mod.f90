@@ -392,7 +392,7 @@ contains
       end do
 
       ! only retain the populated pairs
-      pairs = pairs(1:k, :)
+      pairs = pairs(1:k, :) ! something wierd happens here with omni
       np = size(pairs, dim=1)
 
       ! get average distance in each lag bin
