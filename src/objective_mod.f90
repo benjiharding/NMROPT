@@ -157,11 +157,7 @@ contains
       write (*, "(A*(g14.8,1x))") "Indicator variogram component: ", objscale(2)
       write (*, "(A*(g14.8,1x))") "Runs component: ", objscale(3)
       write (*, "(A*(g14.8,1x))") "N-point component: ", objscale(4)
-
-      ! write (*, "(A*(g14.8,1x))") "Variogram component: ", objscale%vario(1)
-      ! write (*, "(A*(g14.8,1x))") "Indicator variogram component: ", objscale%ivario(1)
-      ! write (*, "(A*(g14.8,1x))") "Runs component: ", (objscale%runs(i), i=1, ncut)
-      ! write (*, "(A*(g14.8,1x))") "N-point component: ", (objscale%npoint(i), i=1, ncut)
+      write (*, "(A*(g14.8,1x))") "Data component: ", objscale(5)
 
    end subroutine init_objective
 
@@ -173,39 +169,11 @@ contains
       integer, parameter :: MAXPERT = 1000
       real(8), allocatable :: vect(:), vect_denorm(:), min_b(:), max_b(:), diff(:)
       real(8), allocatable :: trial(:), trial_denorm(:)
-      real(8) :: objinit(4), objdelta(4)
-      ! type(objective) :: objinit, objdelta
-      integer :: i, j, ic
-
-      real(8) :: mse
-      integer, allocatable :: iarr(:), expruns(:)
-      integer :: cumruns(maxrun)
-      real(8), allocatable :: phi_n(:)
+      real(8) :: objinit(5), objdelta(5)
+      integer :: i, j
 
       objinit = 0.d0
       objdelta = 0.d0
-
-      ! allocate (objinit%vario(1), objinit%ivario(ncut), &
-      !           objinit%runs(ncut), objinit%npoint(ncut))
-      ! allocate (objdelta%vario(1), objdelta%ivario(ncut), &
-      !           objdelta%runs(ncut), objdelta%npoint(ncut))
-      ! allocate (objscale%vario(1), objscale%ivario(ncut), &
-      !           objscale%runs(ncut), objscale%npoint(ncut))
-
-      ! objscale%vario = 1.d0
-      ! objscale%ivario = 1.d0
-      ! objscale%runs = 1.d0
-      ! objscale%npoint = 1.d0
-
-      ! objinit%vario = 0.d0
-      ! objinit%ivario = 0.d0
-      ! objinit%runs = 0.d0
-      ! objinit%npoint = 0.d0
-
-      ! objdelta%vario = 0.d0
-      ! objdelta%ivario = 0.d0
-      ! objdelta%runs = 0.d0
-      ! objdelta%npoint = 0.d0
 
       ! initial trial vector
       allocate (vect(nnet%dims))
@@ -243,37 +211,8 @@ contains
          call obj_npoint(AL_i, objt_npt)
          objinit(4) = objt_npt
       end if
-
-      ! if (vario .gt. 0) then
-      !    call obj_vario(AL, sill, objt_vario)
-      !    objinit%vario(1) = objt_vario
-      ! end if
-
-      ! if (ivario .gt. 0) then
-      !    call obj_ivario(AL_i, ivars, objt_ivario)
-      !    objinit%ivario(1) = objt_ivario
-      ! end if
-
-      ! if (runs .gt. 0) then
-      !    do i = 1, ncut
-      !       mse = 0.d0
-      !       cumruns = 0
-      !       do j = 1, ndh
-      !          iarr = AL_i(udhidx(j) + 1:udhidx(j + 1), i)
-      !          call binary_runs(iarr, maxrun, expruns)
-      !          cumruns = cumruns + expruns
-      !       end do
-      !       objinit%runs(i) = sum((dble(target_runs(:, i)) - dble(cumruns))**2)
-      !    end do
-      ! end if
-
-      ! if (npoint .gt. 0) then
-      !    do i = 1, ncut
-      !       mse = 0.d0
-      !       call npoint_connect(AL_i(:, i), nstep, ndh, udhidx, phi_n)
-      !       objinit%npoint(i) = sum((target_npoint(:, i) - phi_n)**2)
-      !    end do
-      ! end if
+      call obj_data(AL, objt_data)
+      objinit(5) = objt_data
 
       ! iterate over the pertubations
       do i = 1, MAXPERT
@@ -316,45 +255,9 @@ contains
             objdelta(4) = objdelta(4) + abs(objinit(4) - objt_npt)
          end if
 
-         ! if (vario .gt. 0) then
-         !    call obj_vario(AL, sill, objt_vario)
-         !    if (objt_vario .lt. 0.0) objt_vario = objinit%vario(1)
-         !    objdelta%vario(1) = objdelta%vario(1) + &
-         !                        abs(objinit%vario(1) - objt_vario)
-         ! end if
-
-         ! if (ivario .gt. 0) then
-         !    call obj_ivario(AL_i, ivars, objt_ivario)
-         !    if (objt_ivario .lt. 0.0) objt_ivario = objinit%ivario(1)
-         !    objdelta%ivario(1) = objdelta%ivario(1) + &
-         !                         abs(objinit%ivario(1) - objt_ivario)
-         ! end if
-
-         ! if (runs .gt. 0) then
-         !    do ic = 1, ncut
-         !       mse = 0.d0
-         !       cumruns = 0
-         !       do j = 1, ndh
-         !          iarr = AL_i(udhidx(j) + 1:udhidx(j + 1), ic)
-         !          call binary_runs(iarr, maxrun, expruns)
-         !          cumruns = cumruns + expruns
-         !       end do
-         !       mse = sum((dble(target_runs(:, ic)) - dble(cumruns))**2)
-         !       if (mse .lt. 0.0) mse = objinit%runs(ic)
-         !       objdelta%runs(ic) = objdelta%runs(ic) + abs(objinit%runs(ic) - mse)
-         !    end do
-         ! end if
-
-         ! if (npoint .gt. 0) then
-         !    do ic = 1, ncut
-         !       mse = 0.d0
-         !       call npoint_connect(AL_i(:, ic), nstep, ndh, udhidx, phi_n)
-         !       mse = sum((target_npoint(:, ic) - phi_n)**2)
-         !       if (mse .lt. 0.0) mse = objinit%npoint(ic)
-         !       objdelta%npoint(ic) = objdelta%npoint(ic) + &
-         !                             abs(objinit%npoint(ic) - mse)
-         !    end do
-         ! end if
+         call obj_data(AL, objt_data)
+         if (objt_data .lt. 0.0) objt_data = objinit(5)
+         objdelta(5) = objdelta(5) + abs(objinit(5) - objt_data)
 
       end do
 
@@ -363,34 +266,13 @@ contains
       if (ivario .gt. 0) objscale(2) = MAXPERT/objdelta(2)
       if (runs .gt. 0) objscale(3) = MAXPERT/objdelta(3)
       if (npoint .gt. 0) objscale(4) = MAXPERT/objdelta(4)
-
-      ! if (vario .gt. 0) objscale%vario(1) = MAXPERT/objdelta%vario(1)
-      ! if (ivario .gt. 0) objscale%ivario(1) = MAXPERT/objdelta%ivario(1)
-      ! do ic = 1, ncut
-      !    if (runs .gt. 0) then
-      !       objscale%runs(ic) = MAXPERT/objdelta%runs(ic)
-      !    end if
-      !    if (npoint .gt. 0) then
-      !       objscale%npoint(ic) = MAXPERT/objdelta%npoint(ic)
-      !    end if
-      ! end do
+      objscale(5) = MAXPERT/objdelta(5)
 
       ! user defined scaling if required
       objscale(1) = userfac(1)*objscale(1)
       objscale(2) = userfac(2)*objscale(2)
       objscale(3) = userfac(3)*objscale(3)
       objscale(4) = userfac(4)*objscale(4)
-
-      ! objscale%vario(1) = userfac(1)*objscale%vario(1)
-      ! objscale%ivario(2) = userfac(2)*objscale%ivario(2)
-      ! do ic = 1, ncut
-      !    if (runs .gt. 0) then
-      !       objscale%runs(ic) = userfac(3)*objscale%runs(ic)
-      !    end if
-      !    if (npoint .gt. 0) then
-      !       objscale%npoint(ic) = userfac(3)*objscale%npoint(ic)
-      !    end if
-      ! end do
 
    end subroutine obj_scale
 
@@ -409,6 +291,7 @@ contains
       objt_ivario = 0.d0
       objt_runs = 0.d0
       objt_npt = 0.d0
+      objt_data = 0.d0
 
       ! get matrices for this trial vector
       call vector_to_matrices(v, nnet)
@@ -426,8 +309,9 @@ contains
          if (ivario .gt. 0) call obj_ivario(AL_i, ivars, objt_ivario)
          if (runs .gt. 0) call obj_runs(AL_i, objt_runs)
          if (npoint .gt. 0) call obj_npoint(AL_i, objt_npt)
+         call obj_data(AL, objt_data)
 
-         gobjt = gobjt + objt_vario + objt_ivario + objt_runs + objt_npt
+         gobjt = gobjt + objt_vario + objt_ivario + objt_runs + objt_npt + objt_data
 
       end do
 
@@ -477,7 +361,7 @@ contains
       type(network), intent(inout) :: net
       real(8), intent(in) :: simd(:, :, :)
       real(8), intent(out) :: gobjt ! global temp obj value
-      real(8) :: tobj_vario, tobj_ivario, tobj_runs, tobj_npt
+      real(8) :: tobj_vario, tobj_ivario, tobj_runs, tobj_npt, tobj_data
       real(8) :: mix(ndata)
       integer :: imix(ndata, ncut)
       real(8) :: reg
@@ -489,6 +373,7 @@ contains
       tobj_ivario = 0.d0
       tobj_runs = 0.d0
       tobj_npt = 0.d0
+      tobj_data = 0.d0
 
       ! get matrices for this trial vector
       call vector_to_matrices(v, net)
@@ -506,8 +391,9 @@ contains
          if (ivario .gt. 0) call obj_ivario(imix, iexpsills, tobj_ivario)
          if (runs .gt. 0) call obj_runs(imix, tobj_runs)
          if (npoint .gt. 0) call obj_npoint(imix, tobj_npt)
+         call obj_data(mix, tobj_data)
 
-         gobjt = gobjt + tobj_vario + tobj_ivario + tobj_runs + tobj_npt
+         gobjt = gobjt + tobj_vario + tobj_ivario + tobj_runs + tobj_npt + tobj_data
 
       end do
 
@@ -650,6 +536,19 @@ contains
       objt = objt*objscale(4)
 
    end subroutine obj_npoint
+
+   subroutine obj_data(mix, objt)
+
+      ! data component to enforece network output
+      ! to be positively correlated with actual data
+      real(8), intent(in) :: mix(:)
+      real(8), intent(inout) :: objt
+
+      objt = 0.d0
+      objt = sum((mix - var)**2)
+      objt = objt*objscale(5)
+
+   end subroutine obj_data
 
    subroutine feature_importance(net, ysim, fimp)
 
