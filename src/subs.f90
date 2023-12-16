@@ -1068,4 +1068,29 @@ contains
 
    end function linear_rescale
 
+   subroutine correlation_coefficient(x, y, n, correlation)
+      real(8), intent(in) :: x(:), y(:)     ! Input vectors
+      integer, intent(in) :: n            ! Number of elements in the vectors
+      real(8), intent(out) :: correlation    ! Output correlation coefficient
+      real(8) :: mean_x, mean_y, var_x, var_y, cov_xy
+
+      ! Calculate means
+      mean_x = sum(x)/real(n)
+      mean_y = sum(y)/real(n)
+
+      ! Calculate variances and covariance
+      var_x = sum((x - mean_x)**2)/real(n - 1)
+      var_y = sum((y - mean_y)**2)/real(n - 1)
+      cov_xy = sum((x - mean_x)*(y - mean_y))/real(n - 1)
+
+      ! Calculate correlation coefficient
+      correlation = cov_xy/sqrt(var_x*var_y)
+
+      if (correlation .gt. 1.d0 .or. correlation .lt. -1.d0) then
+         write (*, *) correlation
+         stop
+      end if
+
+   end subroutine correlation_coefficient
+
 end module subs
