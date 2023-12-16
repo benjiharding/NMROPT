@@ -543,9 +543,18 @@ contains
       ! to be positively correlated with actual data
       real(8), intent(in) :: mix(:)
       real(8), intent(inout) :: objt
+      real(8) :: rho
 
       objt = 0.d0
+
+      ! penalize sum of squares
       objt = sum((mix - var)**2)
+      objt = objt*objscale(5)
+
+      ! ! penalize correlation coefficient
+      ! call correlation_coefficient(mix, var, ndata, rho)
+      ! objt = rho_error(rho)
+
       objt = objt*objscale(5)
 
    end subroutine obj_data
@@ -586,7 +595,7 @@ contains
             yp = yperm(idxs, i)
             yperm(:, i) = yp
 
-            call network_forward(net, yperm, AL, .true., nnet%norm)
+            call network_forward(net, yperm, AL, .true., net%norm)
             call calc_expsill(AL, sill)
             call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
@@ -598,7 +607,7 @@ contains
             ep = objt_vario + objt_ivario + objt_runs + objt_npt
 
             ! get the original error
-            call network_forward(net, ysim(:, :, j), AL, .true., nnet%norm)
+            call network_forward(net, ysim(:, :, j), AL, .true., net%norm)
             call calc_expsill(AL, sill)
             call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
@@ -619,5 +628,20 @@ contains
       fimp = fimp/nreals
 
    end subroutine feature_importance
+
+   function rho_error(rho) result(err)
+
+      real(8), intent(in) :: rho
+      real(8) :: err
+
+      if (rho .gt. 1.d0 .or. rho .lt. -1.d0) then
+         write (*, *) rho
+         stop
+      end if
+
+      if (rho .le. 0.d0) err = 1.d0
+      if (rho .gt. 0.d0) err = 1.d0 - rho
+
+   end function rho_error
 
 end module objective_mod
