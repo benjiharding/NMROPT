@@ -30,6 +30,7 @@ module geostat
    integer :: ndh ! number of drillholes
    real(8), allocatable :: x(:), y(:), z(:) ! coordinates
    integer, allocatable :: iz(:, :) ! indicator transform of 'var'
+   real(8), allocatable :: threshwt(:) ! threshold weights
 
    ! variogram parameters
    integer, allocatable :: pairs(:, :) ! (npairs*ndir, 3)

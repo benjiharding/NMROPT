@@ -306,9 +306,9 @@ contains
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
          if (vario .gt. 0) call obj_vario(AL, sill, objt_vario)
-         if (ivario .gt. 0) call obj_ivario(AL_i, ivars, objt_ivario)
-         if (runs .gt. 0) call obj_runs(AL_i, objt_runs)
-         if (npoint .gt. 0) call obj_npoint(AL_i, objt_npt)
+         if (ivario .gt. 0) call obj_ivario(AL_i, ivars, objt_ivario, threshwt)
+         if (runs .gt. 0) call obj_runs(AL_i, objt_runs, threshwt)
+         if (npoint .gt. 0) call obj_npoint(AL_i, objt_npt, threshwt)
          call obj_data(AL, objt_data)
 
          gobjt = gobjt + objt_vario + objt_ivario + objt_runs + objt_npt + objt_data
@@ -388,9 +388,9 @@ contains
          call indicator_transform(mix, thresholds, ndata, ncut, imix, iexpsills)
 
          if (vario .gt. 0) call obj_vario(mix, expsill, tobj_vario)
-         if (ivario .gt. 0) call obj_ivario(imix, iexpsills, tobj_ivario)
-         if (runs .gt. 0) call obj_runs(imix, tobj_runs)
-         if (npoint .gt. 0) call obj_npoint(imix, tobj_npt)
+         if (ivario .gt. 0) call obj_ivario(imix, iexpsills, tobj_ivario, threshwt)
+         if (runs .gt. 0) call obj_runs(imix, tobj_runs, threshwt)
+         if (npoint .gt. 0) call obj_npoint(imix, tobj_npt, threshwt)
          call obj_data(mix, tobj_data)
 
          gobjt = gobjt + tobj_vario + tobj_ivario + tobj_runs + tobj_npt + tobj_data
@@ -460,12 +460,13 @@ contains
 
    end subroutine obj_vario
 
-   subroutine obj_ivario(imix, iexpsills, objt)
+   subroutine obj_ivario(imix, iexpsills, objt, tw)
 
       ! indicator variogram component
       integer, intent(in) :: imix(:, :)
       real(8), intent(in) :: iexpsills(:)
       real(8), intent(inout) :: objt
+      real(8), optional :: tw(:) ! threshold weights
 
       real(8), allocatable :: expivario(:)
       real(8) :: mse
@@ -479,7 +480,11 @@ contains
                               expivario, iexpsills(j))
             call vario_mse(expivario, target_ivario%cuts(j)%dirs(i)%vlags, &
                            varlagdist%dirs(i)%vlags, dble(idwpow), mse)
-            objt = objt + mse
+            if (present(tw)) then
+               objt = objt + mse*threshwt(j)
+            else
+               objt = objt + mse
+            end if
          end do
       end do
 
@@ -487,11 +492,12 @@ contains
 
    end subroutine obj_ivario
 
-   subroutine obj_runs(imix, objt)
+   subroutine obj_runs(imix, objt, tw)
 
       ! cumulative run frequency component
       integer, intent(in) :: imix(:, :)
       real(8), intent(inout) :: objt
+      real(8), optional :: tw(:) ! threshold weights
 
       integer, allocatable :: iarr(:), expruns(:)
       integer :: cumruns(maxrun)
@@ -508,18 +514,23 @@ contains
             cumruns = cumruns + expruns
          end do
          mse = sum((dble(target_runs(:, i)) - dble(cumruns))**2)
-         objt = objt + mse
+         if (present(tw)) then
+            objt = objt + mse*threshwt(i)
+         else
+            objt = objt + mse
+         end if
       end do
 
       objt = objt*objscale(3)
 
    end subroutine obj_runs
 
-   subroutine obj_npoint(imix, objt)
+   subroutine obj_npoint(imix, objt, tw)
 
       ! npoint connectivity component
       integer, intent(in) :: imix(:, :)
       real(8), intent(inout) :: objt
+      real(8), optional :: tw(:) ! threshold weights
 
       real(8), allocatable :: phi_n(:)
       real(8) :: mse
@@ -530,7 +541,11 @@ contains
       do i = 1, ncut
          call npoint_connect(imix(:, i), nstep, ndh, udhidx, phi_n)
          mse = sum((target_npoint(:, i) - phi_n)**2)
-         objt = objt + mse
+         if (present(tw)) then
+            objt = objt + mse*threshwt(i)
+         else
+            objt = objt + mse
+         end if
       end do
 
       objt = objt*objscale(4)
