@@ -281,6 +281,13 @@ contains
       if (test .ne. 0) stop "ERROR in parameter file"
       write (*, *) '  thresholds: ', thresholds
 
+      ! threshold weighting
+      allocate (threshwt(ncut), stat=test)
+      if (test .ne. 0) stop "allocation failed due to insufficient memory!"
+      read (lin, *, iostat=test) threshwt
+      if (test .ne. 0) stop "ERROR in parameter file"
+      write (*, *) '  threshold wights: ', threshwt
+
       ! runs
       read (lin, *, iostat=test) iruns
       if (test .ne. 0) stop "ERROR in parameter file"
