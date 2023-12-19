@@ -201,22 +201,24 @@ contains
       ! linear activation and reduce dims
       AL = ZL(:, 1)
 
-      ! ! normal score transform if required
-      ! if (nstrans) then
-      !    do i = 1, size(AL)
-      !       AL(i) = AL(i) + grnd()*SMALLDBLE ! random despike
-      !    end do
-      !    call nscore(size(AL), AL, dble(-1.0e21), dble(1.0e21), 1, &
-      !                wts, tmp, vrg, ierr)
-      !    if (ierr .gt. 0) stop "Error in normal score transform"
-      !    AL = vrg
-      ! end if
+      ! normal score transform if required
+      if (nstrans) then
 
-      ! dead nuerons can happen here with ReLU if all
-      ! activations are < 0
-      ! scale output within ranges of data
-      ! this **does not** preserve quantiles like nscore
-      AL = minmax_scaler(AL, minval(var), maxval(var))
+         ! do i = 1, size(AL)
+         !    AL(i) = AL(i) + grnd()*SMALLDBLE ! random despike
+         ! end do
+         ! call nscore(size(AL), AL, dble(-1.0e21), dble(1.0e21), 1, &
+         !             wts, tmp, vrg, ierr)
+         ! if (ierr .gt. 0) stop "Error in normal score transform"
+         ! AL = vrg
+
+         ! dead nuerons can happen here with ReLU if all
+         ! activations are < 0
+         ! scale output within ranges of data
+         ! this **does not** preserve quantiles like nscore
+         AL = minmax_scaler(AL, minval(var), maxval(var))
+
+      end if
 
    end subroutine network_forward
 
