@@ -42,6 +42,7 @@ contains
 
       call init_network(net)
       call vector_to_matrices(vector, net)
+      ! call build_refcdf(nsamp, yref, nnet, ttable)
       call network_forward(net, X, AL, .false.)
 
    end subroutine calculate_forward_pass
