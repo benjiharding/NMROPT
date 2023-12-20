@@ -28,7 +28,8 @@ contains
       ! local variables
       integer, allocatable :: nwts(:), nbias(:)
       integer, allocatable :: ngmma(:), nbeta(:)
-      integer :: i, j
+      real(8) :: p, xp
+      integer :: i, j, ierr
 
       ! allocate some counters matrix indices
       allocate (nwts(net%nl - 1), nbias(net%nl - 1))
@@ -112,9 +113,19 @@ contains
          net%dims = sum(nwts) + sum(nbias)
       end if
 
+      ! initialize independent N(0,1) y realizations for ttable
+      allocate (yref(nsamp, ngvarg + 1))
+      do j = 1, ngvarg + 1
+         do i = 1, nsamp
+            p = grnd()
+            call gauinv(p, xp, ierr)
+            yref(i, j) = xp
+         end do
+      end do
+
    end subroutine init_network
 
-   subroutine network_forward(net, Ymat, AL, nstrans, norm)
+   subroutine network_forward(net, Ymat, AL, nstrans, norm, ttable)
 
       ! forward pass through network
 
@@ -131,6 +142,7 @@ contains
       real(8), intent(in) :: Ymat(:, :) ! simulated factors
       logical, intent(in) :: nstrans ! nscore transform flag
       logical, intent(in) :: norm ! normalize activations?
+      real(8), optional :: ttable(:, :) ! transform table
 
       ! return
       real(8), intent(inout) :: AL(:) ! output mixture vector
@@ -142,6 +154,12 @@ contains
                               Zmat(:, :), Znorm(:, :), ZL(:, :), ZLnorm(:, :)
       real(8), allocatable :: vrg(:), tmp(:)
       integer :: i, j, k, ierr
+
+      ! a quick check for transforms
+      if (nstrans .and. .not. present(ttable)) then
+         write (*, *) "Transform table must be present if normal scoring outputs"
+         stop
+      end if
 
       ! initialize the activation matrix
       Amat = Ymat
@@ -203,33 +221,73 @@ contains
 
       ! normal score transform if required
       if (nstrans) then
-
-         ! random despike
+         ! random despike and transform
          do i = 1, ndata
             AL(i) = AL(i) + grnd()*SMALLDBLE
-         end do
-
-         ! build declustered cdf for quantile lookup
-         asort = AL
-         awsort = wts/sum(wts)
-         aord = [(i, i=1, ndata)]
-         call sortem(1, ndata, asort, 2, awsort, aord, asort, &
-                     asort, asort, asort, asort, asort)
-         atmp = dblecumsum(awsort)
-         acdf = atmp(2:)
-         acdf = acdf - acdf(1)/2.0 ! midpoint
-
-         ! find corresponding nscore value from input dist
-         do i = 1, ndata
-            call locate(vcdf, ndata, 1, ndata, acdf(i), j)
-            j = min(max(1, j), (ndata - 1))
-            k = int(aord(i))
-            AL(k) = powint(vcdf(j), vcdf(j + 1), vsort(j), vsort(j + 1), &
-                           acdf(i), 1.d0)
+            call transform_to_refcdf(AL(i), ttable, AL(i), nsamp)
          end do
       end if
 
    end subroutine network_forward
+
+   subroutine build_refcdf(nsamp, yref, net, ttable)
+
+      !
+      ! build reference CDF for normal score transform of
+      ! activation values
+      !
+      integer, intent(in) :: nsamp ! num samples in ref CDF
+      real(8), intent(in) :: yref(:, :) ! Gauss lookup table
+      type(network), intent(inout) :: net ! network object with weights
+      real(8), intent(out) :: ttable(nsamp, 2) ! transform table
+
+      ! locals
+      real(8) :: zref(nsamp) ! activations
+      real(8), allocatable :: nsref(:) ! nscore activations
+      real(8), allocatable :: tmp(:)
+      real(8) :: wt(nsamp)
+      integer :: i, ierr, nfact
+
+      nfact = ngvarg + 1
+      wt = 1.d0
+
+      ! calculate the corresponding z values
+      call network_forward(net, yref, zref, nstrans=.false., norm=net%norm)
+
+      ! normal score to build transform table
+      do i = 1, nsamp
+         zref(i) = zref(i) + grnd()*SMALLDBLE ! random despike
+      end do
+      call nscore(nsamp, zref, dble(-1e21), dble(1e21), 1, wt, &
+                  tmp, nsref, ierr)
+
+      ! sort the reference distribution (for interp.) and return
+      call sortem(1, nsamp, zref, 1, nsref, zref, zref, zref, &
+                  zref, zref, zref, zref)
+      ttable(:, 1) = zref
+      ttable(:, 2) = nsref
+
+   end subroutine build_refcdf
+
+   subroutine transform_to_refcdf(a, ttable, az, nsamp)
+
+      real(8), intent(in) :: a ! activation value
+      real(8), intent(in) :: ttable(:, :) ! transform table
+      integer, intent(in) :: nsamp
+      real(8), intent(out) :: az ! transformed normal score value
+
+      ! locals
+      real(8) :: aref(nsamp), zref(nsamp)
+      integer :: j
+
+      aref = ttable(:, 1)
+      zref = ttable(:, 2)
+
+      call locate(aref, nsamp, 1, nsamp, a, j)
+      j = min(max(1, j), (nsamp - 1))
+      az = powint(aref(j), aref(j + 1), zref(j), zref(j + 1), a, 1.d0)
+
+   end subroutine transform_to_refcdf
 
    subroutine vector_to_matrices(vector, net)
 
@@ -254,7 +312,6 @@ contains
             ! net%layer(i)%gmma = 1.d0
             ! net%layer(i)%beta = 0.d0
          end if
-
       end do
 
    end subroutine vector_to_matrices
@@ -278,7 +335,6 @@ contains
          else if (net%ireg .eq. 2) then ! L2
             reg = reg + sum(net%layer(i)%nnwts**2)*net%regconst
          end if
-
       end do
 
    end subroutine calc_regularization

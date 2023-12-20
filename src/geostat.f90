@@ -86,6 +86,11 @@ module geostat
    real(8), allocatable :: asort(:), awsort(:), acdf(:), atmp(:)
    real(8), allocatable :: vord(:), aord(:)
 
+   ! transform table
+   integer, parameter :: nsamp = 10000
+   real(8) :: ttable(nsamp, 2)
+   real(8), allocatable :: yref(:, :)
+
    !
    ! simulation module
    !

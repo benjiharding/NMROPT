@@ -5,7 +5,8 @@ module objective_mod
    use vario_mod, only: update_vario, vario_mse, indicator_transform, &
                         vario_pairs, varmodelpts, set_sill, calc_expsill
    use network_mod, only: network_forward, vector_to_matrices, &
-                          calc_regularization
+                          calc_regularization, build_refcdf, &
+                          transform_to_refcdf
    use mtmod, only: grnd
    use subs
    use constants
@@ -189,8 +190,12 @@ contains
       ! get matrices for this trial vector
       call vector_to_matrices(vect_denorm, nnet)
 
+      ! build transform for this trial vector and
+      ! use the same ttable for all realizations
+      call build_refcdf(nsamp, yref, nnet, ttable)
+
       ! the choice of the first realization here is arbitrary
-      call network_forward(nnet, ysimd(:, :, 1), AL, .true., nnet%norm)
+      call network_forward(nnet, ysimd(:, :, 1), AL, .true., nnet%norm, ttable)
       call calc_expsill(AL, sill)
       call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
@@ -226,8 +231,12 @@ contains
          ! get matrices for this trial vector
          call vector_to_matrices(trial_denorm, nnet)
 
+         ! build transform for this trial vector and
+         ! use the same ttable for all realizations
+         call build_refcdf(nsamp, yref, nnet, ttable)
+
          ! evalute the random vector
-         call network_forward(nnet, ysimd(:, :, 1), AL, .true., nnet%norm)
+         call network_forward(nnet, ysimd(:, :, 1), AL, .true., nnet%norm, ttable)
          call calc_expsill(AL, sill)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
@@ -296,12 +305,16 @@ contains
       ! get matrices for this trial vector
       call vector_to_matrices(v, nnet)
 
+      ! build transform for this trial vector and
+      ! use the same ttable for all realizations
+      call build_refcdf(nsamp, yref, nnet, ttable)
+
       ! calculate regularization values if required
       call calc_regularization(nnet, reg)
 
       do ireal = 1, nreals
 
-         call network_forward(nnet, ysimd(:, :, ireal), AL, .true., nnet%norm)
+         call network_forward(nnet, ysimd(:, :, ireal), AL, .true., nnet%norm, ttable)
          call calc_expsill(AL, sill)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
@@ -337,12 +350,16 @@ contains
       ! get matrices for this trial vector
       call vector_to_matrices(v, nnet)
 
+      ! build transform for this trial vector and
+      ! use the same ttable for all realizations
+      call build_refcdf(nsamp, yref, nnet, ttable)
+
       ! calculate regularization values if required
       call calc_regularization(nnet, reg)
 
       do ireal = 1, nreals
 
-         call network_forward(nnet, ysimd(:, :, ireal), AL, .true., nnet%norm)
+         call network_forward(nnet, ysimd(:, :, ireal), AL, .true., nnet%norm, ttable)
          sqerr = sum((AL - var)**2)
          gobjt = gobjt + sqerr
 
@@ -375,15 +392,19 @@ contains
       tobj_npt = 0.d0
       tobj_data = 0.d0
 
-      ! get matrices for this trial vector
+      ! get matrices for this trial vector (updates net object)
       call vector_to_matrices(v, net)
+
+      ! build transform for this trial vector and
+      ! use the same ttable for all realizations
+      call build_refcdf(nsamp, yref, nnet, ttable)
 
       ! calculate regularization values if required
       call calc_regularization(net, reg)
 
       do ireal = 1, nreals
 
-         call network_forward(net, simd(:, :, ireal), mix, .true., nnet%norm)
+         call network_forward(net, simd(:, :, ireal), mix, .true., nnet%norm, ttable)
          call calc_expsill(mix, expsill)
          call indicator_transform(mix, thresholds, ndata, ncut, imix, iexpsills)
 
@@ -422,12 +443,16 @@ contains
       ! get matrices for this trial vector
       call vector_to_matrices(v, net)
 
+      ! build transform for this trial vector and
+      ! use the same ttable for all realizations
+      call build_refcdf(nsamp, yref, nnet, ttable)
+
       ! calculate regularization values if required
       call calc_regularization(net, reg)
 
       do ireal = 1, nreals
 
-         call network_forward(net, simd(:, :, ireal), mix, .true., nnet%norm)
+         call network_forward(net, simd(:, :, ireal), mix, .true., nnet%norm, ttable)
          sqerr = sum((mix - var)**2)
          gobjt = gobjt + sqerr
 
@@ -596,6 +621,7 @@ contains
 
       idxs = [(i, i=1, ndata)]
       call vector_to_matrices(best, net)
+      call build_refcdf(nsamp, yref, nnet, ttable)
       call calc_regularization(net, reg)
 
       ! main loop over input features
@@ -610,7 +636,7 @@ contains
             yp = yperm(idxs, i)
             yperm(:, i) = yp
 
-            call network_forward(net, yperm, AL, .true., net%norm)
+            call network_forward(net, yperm, AL, .true., net%norm, ttable)
             call calc_expsill(AL, sill)
             call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
@@ -622,7 +648,7 @@ contains
             ep = objt_vario + objt_ivario + objt_runs + objt_npt
 
             ! get the original error
-            call network_forward(net, ysim(:, :, j), AL, .true., net%norm)
+            call network_forward(net, ysim(:, :, j), AL, .true., net%norm, ttable)
             call calc_expsill(AL, sill)
             call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
 
