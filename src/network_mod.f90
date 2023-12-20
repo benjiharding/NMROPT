@@ -2,8 +2,8 @@ module network_mod
 
    use geostat
    use types_mod, only: network
-   use subs, only: nscore, linear_rescale
    use mtmod, only: grnd
+   use subs
    use constants
 
    implicit none
@@ -141,7 +141,7 @@ contains
       real(8), allocatable :: W(:, :), WL(:, :), b(:, :), bL(:, :), &
                               Zmat(:, :), Znorm(:, :), ZL(:, :), ZLnorm(:, :)
       real(8), allocatable :: vrg(:), tmp(:)
-      integer :: i, ierr
+      integer :: i, j, k, ierr
 
       ! initialize the activation matrix
       Amat = Ymat
@@ -204,20 +204,29 @@ contains
       ! normal score transform if required
       if (nstrans) then
 
-         do i = 1, size(AL)
-            AL(i) = AL(i) + grnd()*SMALLDBLE ! random despike
+         ! random despike
+         do i = 1, ndata
+            AL(i) = AL(i) + grnd()*SMALLDBLE
          end do
-         call nscore(size(AL), AL, dble(-1.0e21), dble(1.0e21), 1, &
-                     wts, tmp, vrg, ierr)
-         if (ierr .gt. 0) stop "Error in normal score transform"
-         AL = vrg
 
-         ! dead nuerons can happen here with ReLU if all
-         ! activations are < 0
-         ! scale output within ranges of data
-         ! this **does not** preserve quantiles like nscore
-         ! AL = minmax_scaler(AL, minval(var), maxval(var))
+         ! build declustered cdf for quantile lookup
+         asort = AL
+         awsort = wts/sum(wts)
+         aord = [(i, i=1, ndata)]
+         call sortem(1, ndata, asort, 2, awsort, aord, asort, &
+                     asort, asort, asort, asort, asort)
+         atmp = dblecumsum(awsort)
+         acdf = atmp(2:)
+         acdf = acdf - acdf(1)/2.0 ! midpoint
 
+         ! find corresponding nscore value from input dist
+         do i = 1, ndata
+            call locate(vcdf, ndata, 1, ndata, acdf(i), j)
+            j = min(max(1, j), (ndata - 1))
+            k = int(aord(i))
+            AL(k) = powint(vcdf(j), vcdf(j + 1), vsort(j), vsort(j + 1), &
+                           acdf(i), 1.d0)
+         end do
       end if
 
    end subroutine network_forward

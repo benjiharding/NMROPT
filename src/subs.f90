@@ -1068,6 +1068,18 @@ contains
 
    end function linear_rescale
 
+   function dblecumsum(a) result(b)
+      ! cumulative sum of real array a
+      real(8), intent(in) :: a(:)
+      real(8) :: b(size(a) + 1)
+      integer :: i
+      b(1) = 0
+      b(2:) = a
+      do i = 2, size(a) + 1
+         b(i) = b(i - 1) + a(i - 1)
+      end do
+   end function dblecumsum
+
    subroutine correlation_coefficient(x, y, n, correlation)
       real(8), intent(in) :: x(:), y(:)     ! Input vectors
       integer, intent(in) :: n            ! Number of elements in the vectors

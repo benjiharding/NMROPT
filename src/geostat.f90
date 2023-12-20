@@ -24,6 +24,7 @@ module geostat
    real(8) :: objscale(5) ! fobj scaling parameters
    real(8) :: objt_vario, objt_ivario, objt_runs, objt_npt, & ! temp obj values
               objt_data
+
    ! drillhole parameters
    integer, allocatable :: dhids(:), dhlens(:) ! dhids and length
    integer, allocatable :: udhids(:), udhidx(:) ! unique dhids
@@ -79,6 +80,11 @@ module geostat
    ! data parameters
    real(8), allocatable :: var(:), nsvar(:), wts(:) ! variable and weights
    integer :: itrans ! nscore flag
+
+   ! cdf lookup arrays - v = var; a = activation
+   real(8), allocatable :: vsort(:), wsort(:), vcdf(:), vtmp(:)
+   real(8), allocatable :: asort(:), awsort(:), acdf(:), atmp(:)
+   real(8), allocatable :: vord(:), aord(:)
 
    !
    ! simulation module

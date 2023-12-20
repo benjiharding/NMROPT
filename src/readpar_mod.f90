@@ -598,12 +598,27 @@ contains
          wts = 1.d0
       end if
 
+      ! random despike
+      do i = 1, ndata
+         var(i) = var(i) + grnd()*SMALLDBLE
+      end do
+
       ! nscore input var if required
       if (itrans .eq. 1) then
          call nscore(ndata, var, tmin, tmax, 1, wts, tmpnsvar, nsvar, test)
          if (test .gt. 0) stop "Error in normal score transform"
          var = nsvar
       end if
+
+      ! build declustered cdf for quantile lookup
+      vsort = var
+      wsort = wts/sum(wts)
+      vord = [(i, i=1, ndata)]
+      call sortem(1, ndata, vsort, 2, wsort, vord, vsort, vsort, vsort, vsort, &
+                  vsort, vsort)
+      vtmp = dblecumsum(wsort)
+      vcdf = vtmp(2:)
+      vcdf = vcdf - vcdf(1)/2.0 ! midpoint
 
       ! get unique drillhole ids - this array is sorted
       udhids = unique(dhids)
