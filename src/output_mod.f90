@@ -31,7 +31,7 @@ contains
       do i = 1, nreals
          call network_forward(nnet, ysimd(:, :, i), opt_AL(:, i), .true., nnet%norm, ttable)
          call indicator_transform(opt_AL(:, i), thresholds, ndata, ncut, &
-                                  opt_AL_i(:, :, i), best_ivars(:, i))
+                                  opt_AL_i(:, :, i))
          do j = 1, ndata
             write (lout, "(*(g14.8,1x))") dhids(j), xyz(1, j), xyz(2, j), &
                xyz(3, j), opt_AL(j, i)
@@ -73,7 +73,6 @@ contains
          write (ltrg, "(A)") "Azimuth"
          write (ltrg, "(A)") "Dip"
          do i = 1, nreals
-            call calc_expsill(opt_AL(:, i), sill)
             do j = 1, ndir
                call update_vario(heads%dirs(j), tails%dirs(j), opt_AL(:, i), expvario, sill)
                do k = 1, size(heads%dirs(j)%lags)
@@ -105,7 +104,7 @@ contains
             do ic = 1, ncut
                do j = 1, ndir
                   call update_vario(heads%dirs(j), tails%dirs(j), dble(opt_AL_i(:, ic, i)), &
-                                    expvario, best_ivars(ic, i))
+                                    expvario, ivars(ic))
                   do k = 1, size(heads%dirs(j)%lags)
                      write (ltrg, "(*(g14.8,1x))") i, ic, j, varlagdist%dirs(j)%vlags(k), &
                         size(heads%dirs(j)%lags(k)%idxs), expvario(k), &
