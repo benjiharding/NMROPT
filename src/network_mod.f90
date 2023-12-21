@@ -277,15 +277,12 @@ contains
       real(8), intent(out) :: az ! transformed normal score value
 
       ! locals
-      real(8) :: aref(nsamp), zref(nsamp)
       integer :: j
 
-      aref = ttable(:, 1)
-      zref = ttable(:, 2)
-
-      call locate(aref, nsamp, 1, nsamp, a, j)
+      call locate(ttable(:, 1), nsamp, 1, nsamp, a, j)
       j = min(max(1, j), (nsamp - 1))
-      az = powint(aref(j), aref(j + 1), zref(j), zref(j + 1), a, 1.d0)
+      az = powint(ttable(j, 1), ttable(j + 1, 1), ttable(j, 2), &
+                  ttable(j + 1, 2), a, 1.d0)
 
    end subroutine transform_to_refcdf
 
@@ -435,7 +432,7 @@ contains
       real(8), intent(in) :: yval(:, :)
       real(8) :: a(size(yval, 1), size(yval, 2))
 
-      a = 1.d0/(1.d0 + exp(-yval))
+      a = 1.d0/(1.d0 + dexp(-yval))
 
    end function sigmoid
 
@@ -446,7 +443,7 @@ contains
       real(8), intent(in) :: yval(:, :)
       real(8) :: a(size(yval, 1), size(yval, 2))
 
-      a = dble(tanh(yval))
+      a = dtanh(yval)
 
    end function hyptan
 
