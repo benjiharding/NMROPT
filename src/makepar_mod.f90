@@ -34,7 +34,7 @@ contains
       write (99, "(A)") '1  1  1  1                        - objective components: varg, ivarg, runs, npoint'
       write (99, "(A)") '1  1  1  1                        - objective weight:     varg, ivarg, runs, npoint'
       write (99, "(A)") '3                                 - number of indicator thresholds'
-      write (99, "(A)") '-1.28 0.0 1.28                    - indicator thresholds'
+      write (99, "(A)") '-1.28 0.0 1.28                    - Gaussian indicator thresholds'
       write (99, "(A)") '1  1  1                           - threshold weights '
       write (99, "(A)") '1                                 - runs above or below threshold? (0=below, 1=above, 2=both)'
       write (99, "(A)") '30                                - max number of runs to consider'
