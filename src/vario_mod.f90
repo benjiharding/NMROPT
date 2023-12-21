@@ -11,7 +11,7 @@ module vario_mod
 
 contains
 
-   subroutine indicator_transform(zval, zc, nd, ncut, iz, ivars)
+   subroutine indicator_transform(zval, zc, nd, ncut, iz)
 
       ! indicator transform of zval based on cutoffs zc
 
@@ -21,7 +21,7 @@ contains
 
       ! result
       integer, intent(inout) :: iz(:, :)
-      real(8), intent(inout) :: ivars(:)
+      ! real(8), intent(inout) :: ivars(:)
 
       ! local variables
       integer :: i, j
@@ -39,15 +39,15 @@ contains
          end do
       end do
 
-      ! indicator variance to scale sill
-      do j = 1, ncut
-         prop = 0.d0
-         do i = 1, nd
-            prop = prop + iz(i, j)
-         end do
-         prop = prop/nd
-         ivars(j) = prop*(1 - prop)
-      end do
+      ! ! indicator variance to scale sill
+      ! do j = 1, ncut
+      !    prop = 0.d0
+      !    do i = 1, nd
+      !       prop = prop + iz(i, j)
+      !    end do
+      !    prop = prop/nd
+      !    ivars(j) = prop*(1 - prop)
+      ! end do
 
    end subroutine indicator_transform
 

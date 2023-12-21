@@ -1,8 +1,6 @@
 module de_mod
 
-   use geostat, only: mut, cplo, cphi, popsize, its, best, &
-                      bmin, bmax, lobj, nnet, ysimd, &
-                      num_threads, ttable, nsamp, yref
+   use geostat
    use objective_mod, only: obj_nmr, obj_nmr_vect, pobj_nmr, pobj_nmr_vect
    use types_mod
    use mtmod, only: grnd
@@ -303,7 +301,7 @@ contains
          !$omp idx_loc, pf, id, first, last) &
          !$omp SHARED(dims, pop, popsize, mut, crossp, min_b, diff, func,  &
          !$omp num_threads, pfit, best_idx, trials, trials_denorm, &
-         !$omp yref, ttable)
+         !$omp yref, ttable, sill, ivars)
 
          id = omp_get_thread_num()
          first = (id*popsize)/num_threads + 1

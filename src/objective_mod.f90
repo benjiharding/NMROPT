@@ -23,6 +23,7 @@ contains
       integer, allocatable :: headt(:), tailt(:), lagt(:)
       integer, allocatable :: lag_idxs(:), sub_idxs(:), valid_idxs(:)
       real(8), allocatable :: tmpbins(:), tmpnpt(:)
+      real(8) :: q
       integer :: maxlags
       integer :: i, ii, j, k, nl
 
@@ -31,7 +32,15 @@ contains
       allocate (AL(ndata), AL_i(ndata, ncut))
 
       ! indicator transform of 'var'
-      call indicator_transform(var, thresholds, ndata, ncut, iz, ivars)
+      call indicator_transform(var, thresholds, ndata, ncut, iz)
+
+      ! get vario sills for standardization
+      do i = 1, ncut
+         q = gcum(thresholds(i))
+         ivars(i) = q*(1 - q)
+      end do
+      sill = 1.d0
+      ! call calc_expsill(var, sill)
 
       ! get the start/end dh indices in the mixture array
       allocate (udhidx(ndh + 1))
@@ -197,7 +206,7 @@ contains
       ! the choice of the first realization here is arbitrary
       call network_forward(nnet, ysimd(:, :, 1), AL, .true., nnet%norm, ttable)
       call calc_expsill(AL, sill)
-      call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
+      call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
       ! initilaize a starting value for each component
       if (vario .gt. 0) then
@@ -238,7 +247,7 @@ contains
          ! evalute the random vector
          call network_forward(nnet, ysimd(:, :, 1), AL, .true., nnet%norm, ttable)
          call calc_expsill(AL, sill)
-         call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
+         call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
          if (vario .gt. 0) then
             call obj_vario(AL, sill, objt_vario)
@@ -315,8 +324,7 @@ contains
       do ireal = 1, nreals
 
          call network_forward(nnet, ysimd(:, :, ireal), AL, .true., nnet%norm, ttable)
-         call calc_expsill(AL, sill)
-         call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
+         call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
          if (vario .gt. 0) call obj_vario(AL, sill, objt_vario)
          if (ivario .gt. 0) call obj_ivario(AL_i, ivars, objt_ivario, threshwt)
@@ -382,7 +390,7 @@ contains
       real(8) :: mix(ndata)
       integer :: imix(ndata, ncut)
       real(8) :: reg
-      real(8) :: expsill, iexpsills(ncut)
+      ! real(8) :: expsill, iexpsills(ncut)
       integer :: ireal
 
       gobjt = 0.d0
@@ -397,19 +405,18 @@ contains
 
       ! build transform for this trial vector and
       ! use the same ttable for all realizations
-      call build_refcdf(nsamp, yref, nnet, ttable)
+      call build_refcdf(nsamp, yref, net, ttable)
 
       ! calculate regularization values if required
       call calc_regularization(net, reg)
 
       do ireal = 1, nreals
 
-         call network_forward(net, simd(:, :, ireal), mix, .true., nnet%norm, ttable)
-         call calc_expsill(mix, expsill)
-         call indicator_transform(mix, thresholds, ndata, ncut, imix, iexpsills)
+         call network_forward(net, simd(:, :, ireal), mix, .true., net%norm, ttable)
+         call indicator_transform(mix, thresholds, ndata, ncut, imix)
 
-         if (vario .gt. 0) call obj_vario(mix, expsill, tobj_vario)
-         if (ivario .gt. 0) call obj_ivario(imix, iexpsills, tobj_ivario, threshwt)
+         if (vario .gt. 0) call obj_vario(mix, sill, tobj_vario)
+         if (ivario .gt. 0) call obj_ivario(imix, ivars, tobj_ivario, threshwt)
          if (runs .gt. 0) call obj_runs(imix, tobj_runs, threshwt)
          if (npoint .gt. 0) call obj_npoint(imix, tobj_npt, threshwt)
          call obj_data(mix, tobj_data)
@@ -445,14 +452,14 @@ contains
 
       ! build transform for this trial vector and
       ! use the same ttable for all realizations
-      call build_refcdf(nsamp, yref, nnet, ttable)
+      call build_refcdf(nsamp, yref, net, ttable)
 
       ! calculate regularization values if required
       call calc_regularization(net, reg)
 
       do ireal = 1, nreals
 
-         call network_forward(net, simd(:, :, ireal), mix, .true., nnet%norm, ttable)
+         call network_forward(net, simd(:, :, ireal), mix, .true., net%norm, ttable)
          sqerr = sum((mix - var)**2)
          gobjt = gobjt + sqerr
 
@@ -621,7 +628,7 @@ contains
 
       idxs = [(i, i=1, ndata)]
       call vector_to_matrices(best, net)
-      call build_refcdf(nsamp, yref, nnet, ttable)
+      call build_refcdf(nsamp, yref, net, ttable)
       call calc_regularization(net, reg)
 
       ! main loop over input features
@@ -638,7 +645,7 @@ contains
 
             call network_forward(net, yperm, AL, .true., net%norm, ttable)
             call calc_expsill(AL, sill)
-            call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
+            call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
             if (vario .gt. 0) call obj_vario(AL, sill, objt_vario)
             if (ivario .gt. 0) call obj_ivario(AL_i, ivars, objt_ivario)
@@ -650,7 +657,7 @@ contains
             ! get the original error
             call network_forward(net, ysim(:, :, j), AL, .true., net%norm, ttable)
             call calc_expsill(AL, sill)
-            call indicator_transform(AL, thresholds, ndata, ncut, AL_i, ivars)
+            call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
             if (vario .gt. 0) call obj_vario(AL, sill, objt_vario)
             if (ivario .gt. 0) call obj_ivario(AL_i, ivars, objt_ivario)
