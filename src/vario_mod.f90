@@ -33,7 +33,7 @@ contains
       ! iterate over cutoffs and set indicators
       do i = 1, nd
          do j = 1, ncut
-            if (zval(i) .le. zc(j)) then
+            if (zval(i) .lt. zc(j)) then
                iz(i, j) = 1
             end if
          end do
@@ -94,27 +94,45 @@ contains
 
    end subroutine update_vario
 
-   subroutine calc_expsill(var, sill)
+   subroutine calc_expsill(var, sill, vtype, cut)
 
       ! sill of traditional variogram (variance)
+      ! or continuous indicator variogram
 
       real(8), intent(in) :: var(:)
+      integer, intent(in) :: vtype
       real(8), intent(out) :: sill
-      real(8) :: mean, sumsqs
+      real(8), optional :: cut
+      real(8) :: mean, sumsqs, prop
       integer :: i, nd
 
       nd = size(var)
-      mean = 0.d0
-      sumsqs = 0.d0
 
-      do i = 1, nd
-         mean = mean + var(i)
-         sumsqs = sumsqs + var(i)*var(i)
-      end do
+      select case (vtype)
 
-      mean = mean/nd
-      sumsqs = sumsqs/nd
-      sill = sumsqs - mean*mean
+      case (1) ! traditional variogram
+         mean = 0.d0
+         sumsqs = 0.d0
+         do i = 1, nd
+            mean = mean + var(i)
+            sumsqs = sumsqs + var(i)*var(i)
+         end do
+         mean = mean/nd
+         sumsqs = sumsqs/nd
+         sill = sumsqs - mean*mean
+
+      case (2) ! continuous indicator
+         if (.not. present(cut)) stop "cutoff must be provided for indicator sill"
+         prop = 0.d0
+         do i = 1, nd
+            if (var(i) .lt. cut) then
+               prop = prop + 1
+            end if
+         end do
+         prop = prop/nd
+         sill = prop*(1.d0 - prop)
+
+      end select
 
    end subroutine calc_expsill
 
