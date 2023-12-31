@@ -104,7 +104,7 @@ contains
             do ic = 1, ncut
                do j = 1, ndir
                   call update_vario(heads%dirs(j), tails%dirs(j), dble(opt_AL_i(:, ic, i)), &
-                                    expvario, ivars(ic))
+                                    expvario, isills(ic))
                   do k = 1, size(heads%dirs(j)%lags)
                      write (ltrg, "(*(g14.8,1x))") i, ic, j, varlagdist%dirs(j)%vlags(k), &
                         size(heads%dirs(j)%lags(k)%idxs), expvario(k), &

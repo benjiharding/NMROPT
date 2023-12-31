@@ -41,7 +41,7 @@ module geostat
    type(vario_array) :: varlagdist
    type(vario_array) :: varazm, vardip
    real(8), allocatable :: thresholds(:) ! for indicator transform
-   real(8), allocatable :: ivars(:) ! indicator sills (ncut)
+   real(8), allocatable :: isills(:) ! indicator sills (ncut)
    real(8) :: sill
    integer, allocatable :: nlags(:) ! multiple directions
    type(experimental), allocatable :: expvar(:)

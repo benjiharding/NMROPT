@@ -301,7 +301,7 @@ contains
          !$omp idx_loc, pf, id, first, last) &
          !$omp SHARED(dims, pop, popsize, mut, crossp, min_b, diff, func,  &
          !$omp num_threads, pfit, best_idx, trials, trials_denorm, &
-         !$omp yref, ttable, sill, ivars)
+         !$omp yref, ttable, sill, isills)
 
          id = omp_get_thread_num()
          first = (id*popsize)/num_threads + 1

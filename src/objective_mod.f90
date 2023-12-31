@@ -28,19 +28,22 @@ contains
       integer :: i, ii, j, k, nl
 
       ! allocate data arrays
-      allocate (iz(ndata, ncut), ivars(ncut))
+      allocate (iz(ndata, ncut), isills(ncut))
       allocate (AL(ndata), AL_i(ndata, ncut))
 
-      ! indicator transform of 'var'
+      ! indicator transform of input data
       call indicator_transform(var, thresholds, ndata, ncut, iz)
 
       ! get vario sills for standardization
+
+      sill = 1.d0
+      ! call calc_expsill(var, sill, vtype=1)
+
       do i = 1, ncut
          q = gcum(thresholds(i))
-         ivars(i) = q*(1 - q)
+         isills(i) = q*(1.d0 - q)
+         ! call calc_expsill(var, isills(i), vtype=2, cut=thresholds(i))
       end do
-      sill = 1.d0
-      ! call calc_expsill(var, sill)
 
       ! get the start/end dh indices in the mixture array
       allocate (udhidx(ndh + 1))
@@ -161,6 +164,7 @@ contains
       write (*, *) " "
 
       objscale = 1.d0
+
       call obj_scale()
 
       write (*, "(A*(g14.8,1x))") "Variogram component: ", objscale(1)
@@ -205,7 +209,6 @@ contains
 
       ! the choice of the first realization here is arbitrary
       call network_forward(nnet, ysimd(:, :, 1), AL, .true., nnet%norm, ttable)
-      call calc_expsill(AL, sill)
       call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
       ! initilaize a starting value for each component
@@ -214,7 +217,7 @@ contains
          objinit(1) = objt_vario
       end if
       if (ivario .gt. 0) then
-         call obj_ivario(AL_i, ivars, objt_ivario)
+         call obj_ivario(AL_i, isills, objt_ivario)
          objinit(2) = objt_ivario
       end if
       if (runs .gt. 0) then
@@ -246,7 +249,6 @@ contains
 
          ! evalute the random vector
          call network_forward(nnet, ysimd(:, :, 1), AL, .true., nnet%norm, ttable)
-         call calc_expsill(AL, sill)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
          if (vario .gt. 0) then
@@ -256,7 +258,7 @@ contains
          end if
 
          if (ivario .gt. 0) then
-            call obj_ivario(AL_i, ivars, objt_ivario)
+            call obj_ivario(AL_i, isills, objt_ivario)
             if (objt_ivario .lt. 0.0) objt_ivario = objinit(2)
             objdelta(2) = objdelta(2) + abs(objinit(2) - objt_ivario)
          end if
@@ -327,7 +329,7 @@ contains
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
          if (vario .gt. 0) call obj_vario(AL, sill, objt_vario)
-         if (ivario .gt. 0) call obj_ivario(AL_i, ivars, objt_ivario, threshwt)
+         if (ivario .gt. 0) call obj_ivario(AL_i, isills, objt_ivario, threshwt)
          if (runs .gt. 0) call obj_runs(AL_i, objt_runs, threshwt)
          if (npoint .gt. 0) call obj_npoint(AL_i, objt_npt, threshwt)
          call obj_data(AL, objt_data)
@@ -416,10 +418,10 @@ contains
          call indicator_transform(mix, thresholds, ndata, ncut, imix)
 
          if (vario .gt. 0) call obj_vario(mix, sill, tobj_vario)
-         if (ivario .gt. 0) call obj_ivario(imix, ivars, tobj_ivario, threshwt)
+         if (ivario .gt. 0) call obj_ivario(imix, isills, tobj_ivario, threshwt)
          if (runs .gt. 0) call obj_runs(imix, tobj_runs, threshwt)
          if (npoint .gt. 0) call obj_npoint(imix, tobj_npt, threshwt)
-         call obj_data(mix, tobj_data)
+         ! call obj_data(mix, tobj_data)
 
          gobjt = gobjt + tobj_vario + tobj_ivario + tobj_runs + tobj_npt + tobj_data
 
@@ -644,11 +646,10 @@ contains
             yperm(:, i) = yp
 
             call network_forward(net, yperm, AL, .true., net%norm, ttable)
-            call calc_expsill(AL, sill)
             call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
             if (vario .gt. 0) call obj_vario(AL, sill, objt_vario)
-            if (ivario .gt. 0) call obj_ivario(AL_i, ivars, objt_ivario)
+            if (ivario .gt. 0) call obj_ivario(AL_i, isills, objt_ivario)
             if (runs .gt. 0) call obj_runs(AL_i, objt_runs)
             if (npoint .gt. 0) call obj_npoint(AL_i, objt_npt)
 
@@ -656,11 +657,10 @@ contains
 
             ! get the original error
             call network_forward(net, ysim(:, :, j), AL, .true., net%norm, ttable)
-            call calc_expsill(AL, sill)
             call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
             if (vario .gt. 0) call obj_vario(AL, sill, objt_vario)
-            if (ivario .gt. 0) call obj_ivario(AL_i, ivars, objt_ivario)
+            if (ivario .gt. 0) call obj_ivario(AL_i, isills, objt_ivario)
             if (runs .gt. 0) call obj_runs(AL_i, objt_runs)
             if (npoint .gt. 0) call obj_npoint(AL_i, objt_npt)
 
