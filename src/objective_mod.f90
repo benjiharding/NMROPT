@@ -248,37 +248,37 @@ contains
          call build_refcdf(nsamp, yref, nnet, ttable)
 
          ! evalute the random vector
-         ireal = floor(grnd()*nreals + 1)
-         call network_forward(nnet, ysimd(:, :, ireal), AL, .true., nnet%norm, ttable)
+         ! ireal = floor(grnd()*nreals + 1)
+         call network_forward(nnet, ysimd(:, :, 1), AL, .true., nnet%norm, ttable)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
          if (vario .gt. 0) then
             call obj_vario(AL, sill, objt_vario)
             if (objt_vario .lt. 0.0) objt_vario = objinit(1)
-            objdelta(1) = objdelta(1) + abs(objinit(1) - objt_vario)
+            objdelta(1) = objdelta(1) + abs(objt_vario - objinit(1))
          end if
 
          if (ivario .gt. 0) then
             call obj_ivario(AL_i, isills, objt_ivario)
             if (objt_ivario .lt. 0.0) objt_ivario = objinit(2)
-            objdelta(2) = objdelta(2) + abs(objinit(2) - objt_ivario)
+            objdelta(2) = objdelta(2) + abs(objt_ivario - objinit(2))
          end if
 
          if (runs .gt. 0) then
             call obj_runs(AL_i, objt_runs)
             if (objt_runs .lt. 0.0) objt_runs = objinit(3)
-            objdelta(3) = objdelta(3) + abs(objinit(3) - objt_runs)
+            objdelta(3) = objdelta(3) + abs(objt_runs - objinit(3))
          end if
 
          if (npoint .gt. 0) then
             call obj_npoint(AL_i, objt_npt)
             if (objt_npt .lt. 0.0) objt_npt = objinit(4)
-            objdelta(4) = objdelta(4) + abs(objinit(4) - objt_npt)
+            objdelta(4) = objdelta(4) + abs(objt_npt - objinit(4))
          end if
 
          call obj_data(AL, objt_data)
          if (objt_data .lt. 0.0) objt_data = objinit(5)
-         objdelta(5) = objdelta(5) + abs(objinit(5) - objt_data)
+         objdelta(5) = objdelta(5) + abs(objt_data - objinit(5))
 
       end do
 
