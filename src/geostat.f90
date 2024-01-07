@@ -15,10 +15,11 @@ module geostat
    integer, allocatable :: AL_i(:, :) ! indicator transform of AL (nd, ncut)
 
    ! objective function targets
-   type(vario_array) :: target_vario
-   type(ivario_array) :: target_ivario
-   integer, allocatable :: target_runs(:, :) ! (ncut, maxrun)
-   real(8), allocatable :: target_npoint(:, :) ! (ncut, nstep)
+   type(vario_array) :: target_vario, avg_vario
+   type(ivario_array) :: target_ivario, avg_ivario
+   integer, allocatable :: target_runs(:, :) ! (maxrun, ncut)
+   real(8), allocatable :: avg_runs(:, :) ! (maxrun, ncut)
+   real(8), allocatable :: target_npoint(:, :), avg_npoint(:, :) ! (nstep, ncut)
 
    ! objective function scaling
    real(8) :: objscale(5) ! fobj scaling parameters

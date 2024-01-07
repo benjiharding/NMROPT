@@ -99,9 +99,11 @@ contains
       ! variogram target
       if (vario .gt. 0) then
          allocate (target_vario%dirs(ndir))
+         allocate (avg_vario%dirs(ndir))
          do i = 1, ndir
             maxlags = size(varlagdist%dirs(i)%vlags)
             allocate (target_vario%dirs(i)%vlags(maxlags))
+            allocate (avg_vario%dirs(i)%vlags(maxlags))
             call varmodelpts(vmod(1)%nst, vmod(1)%c0, vmod(1)%it, vmod(1)%cc, &
                              vmod(1)%ang1, vmod(1)%ang2, vmod(1)%ang3, vmod(1)%aa, &
                              vmod(1)%ahmin, vmod(1)%avert, maxlags, &
@@ -113,14 +115,15 @@ contains
       ! indicator variogram target
       if (ivario .gt. 0) then
          allocate (target_ivario%cuts(ncut))
+         allocate (avg_ivario%cuts(ncut))
          do j = 1, ncut
-
             allocate (target_ivario%cuts(j)%dirs(ndir))
-
+            allocate (avg_ivario%cuts(j)%dirs(ndir))
             ! calculate the model points
             do k = 1, ndir
                maxlags = size(varlagdist%dirs(k)%vlags)
                allocate (target_ivario%cuts(j)%dirs(k)%vlags(maxlags))
+               allocate (avg_ivario%cuts(j)%dirs(k)%vlags(maxlags))
                call varmodelpts(ivmod(j)%nst, ivmod(j)%c0, ivmod(j)%it, &
                                 ivmod(j)%cc, ivmod(j)%ang1, ivmod(j)%ang2, &
                                 ivmod(j)%ang3, ivmod(j)%aa, ivmod(j)%ahmin, &
@@ -133,6 +136,7 @@ contains
 
       ! cumulative runs target
       if (runs .gt. 0) then
+         allocate (avg_runs(maxrun, ncut))
          if (t_iruns .eq. 0) then ! calculate from data, not file
             allocate (target_runs(maxrun, ncut))
             target_runs(:, :) = 0
@@ -148,6 +152,7 @@ contains
 
       ! npoint connectivity target
       if (npoint .gt. 0) then
+         allocate (avg_npoint(nstep, ncut))
          if (t_inpoint .eq. 0) then ! calculate from data, not file
             allocate (target_npoint(nstep, ncut))
             target_npoint(:, :) = 0.d0
@@ -164,7 +169,6 @@ contains
       write (*, *) " "
 
       objscale = 1.d0
-
       call obj_scale()
 
       write (*, "(A*(g14.8,1x))") "Variogram component: ", objscale(1)
@@ -342,20 +346,21 @@ contains
 
    end subroutine obj_nmr
 
-   subroutine obj_nmr_vect(v, gobjt)
+   subroutine obj_nmr_avg(v, gobjt)
 
       ! network model of regionalization objective
       ! returns scalar expected objective value
 
-      ! this version has no components, rather it is
-      ! data reconstruction error
-
       real(8), intent(in) :: v(:) ! trial vector
       real(8), intent(out) :: gobjt ! global temp obj value
-      real(8) :: sqerr, reg
-      integer :: ireal
+      real(8) :: reg
 
       gobjt = 0.d0
+      objt_vario = 0.d0
+      objt_ivario = 0.d0
+      objt_runs = 0.d0
+      objt_npt = 0.d0
+      objt_data = 0.d0
 
       ! get matrices for this trial vector
       call vector_to_matrices(v, nnet)
@@ -367,17 +372,19 @@ contains
       ! calculate regularization values if required
       call calc_regularization(nnet, reg)
 
-      do ireal = 1, nreals
+      ! calculate component averages
+      call avg_obj(ysimd, nreals, vario, ivario, runs, npoint)
 
-         call network_forward(nnet, ysimd(:, :, ireal), AL, .true., nnet%norm, ttable)
-         sqerr = sum((AL - var)**2)
-         gobjt = gobjt + sqerr
+      if (vario .gt. 0) call obj_vario_avg(avg_vario, objt_vario)
+      if (ivario .gt. 0) call obj_ivario_avg(avg_ivario, objt_ivario, threshwt)
+      if (runs .gt. 0) call obj_runs_avg(avg_runs, objt_runs, threshwt)
+      if (npoint .gt. 0) call obj_npoint_avg(avg_npoint, objt_npt, threshwt)
+      ! call obj_data(mix, objt_data)
 
-      end do
+      gobjt = objt_vario + objt_ivario + objt_runs + objt_npt + objt_data
+      gobjt = gobjt + reg
 
-      gobjt = (gobjt + reg)/nreals
-
-   end subroutine obj_nmr_vect
+   end subroutine obj_nmr_avg
 
    subroutine pobj_nmr(v, net, simd, gobjt)
 
@@ -431,25 +438,26 @@ contains
 
    end subroutine pobj_nmr
 
-   subroutine pobj_nmr_vect(v, net, simd, gobjt)
+   subroutine pobj_nmr_avg(v, net, simd, gobjt)
 
       ! parallel network model of regionalization objective
       ! returns scalar expected objective value
-
-      ! this version has no components, rather it is
-      ! data reconstruction error
 
       real(8), intent(in) :: v(:) ! trial vector
       type(network), intent(inout) :: net
       real(8), intent(in) :: simd(:, :, :)
       real(8), intent(out) :: gobjt ! global temp obj value
-      real(8) :: mix(ndata)
-      real(8) :: sqerr, reg
-      integer :: ireal
+      real(8) :: tobj_vario, tobj_ivario, tobj_runs, tobj_npt, tobj_data
+      real(8) :: reg
 
       gobjt = 0.d0
+      tobj_vario = 0.d0
+      tobj_ivario = 0.d0
+      tobj_runs = 0.d0
+      tobj_npt = 0.d0
+      tobj_data = 0.d0
 
-      ! get matrices for this trial vector
+      ! get matrices for this trial vector (updates net object)
       call vector_to_matrices(v, net)
 
       ! build transform for this trial vector and
@@ -459,17 +467,116 @@ contains
       ! calculate regularization values if required
       call calc_regularization(net, reg)
 
-      do ireal = 1, nreals
+      ! calculate component averages
+      call avg_obj(simd, nreals, vario, ivario, runs, npoint)
 
-         call network_forward(net, simd(:, :, ireal), mix, .true., net%norm, ttable)
-         sqerr = sum((mix - var)**2)
-         gobjt = gobjt + sqerr
+      if (vario .gt. 0) call obj_vario_avg(avg_vario, tobj_vario)
+      if (ivario .gt. 0) call obj_ivario_avg(avg_ivario, tobj_ivario, threshwt)
+      if (runs .gt. 0) call obj_runs_avg(avg_runs, tobj_runs, threshwt)
+      if (npoint .gt. 0) call obj_npoint_avg(avg_npoint, tobj_npt, threshwt)
+      ! call obj_data(mix, tobj_data)
 
+      gobjt = tobj_vario + tobj_ivario + tobj_runs + tobj_npt + tobj_data
+      gobjt = gobjt + reg
+
+   end subroutine pobj_nmr_avg
+
+   subroutine avg_obj(reals, nreals, avg1, avg2, avg3, avg4)
+
+      ! calculate the average objective for each component
+      ! this is done in a single subroutine call to prevent calling
+      ! network_forward 4 times
+
+      ! parameters
+      real(8), intent(in) :: reals(:, :, :)
+      integer, intent(in) :: nreals
+      integer, intent(in) :: avg1, avg2, avg3, avg4
+
+      ! locals
+      real(8) :: mix(ndata)
+      integer :: imix(ndata, ncut)
+      real(8), allocatable :: expvario(:), expivario(:)
+      integer, allocatable :: iarr(:), expruns(:)
+      integer :: cumruns(maxrun)
+      real(8), allocatable :: phi_n(:)
+      integer :: ireal, i, j
+
+      ! intialize all arrays to zero
+      do i = 1, ndir
+         if (avg1 .gt. 0) avg_vario%dirs(i)%vlags = 0.d0
+         do j = 1, ncut
+            if (avg2 .gt. 0) avg_ivario%cuts(j)%dirs(i)%vlags = 0.d0
+            if (avg3 .gt. 0) avg_runs(:, j) = 0.d0
+            if (avg4 .gt. 0) avg_npoint(:, j) = 0.d0
+         end do
       end do
 
-      gobjt = (gobjt + reg)/nreals
+      ! iterate over realizations
+      do ireal = 1, nreals
 
-   end subroutine pobj_nmr_vect
+         call network_forward(nnet, reals(:, :, ireal), mix, .true., nnet%norm, ttable)
+         call indicator_transform(mix, thresholds, ndata, ncut, imix)
+
+         ! vario
+         if (avg1 .gt. 0) then
+            do i = 1, ndir
+               call update_vario(heads%dirs(i), tails%dirs(i), mix, expvario, sill)
+               avg_vario%dirs(i)%vlags = avg_vario%dirs(i)%vlags + expvario
+            end do
+         end if
+
+         ! ivario
+         if (avg2 .gt. 0) then
+            do j = 1, ncut
+               do i = 1, ndir
+                  call update_vario(heads%dirs(i), tails%dirs(i), dble(imix(:, j)), &
+                                    expivario, isills(j))
+                  avg_ivario%cuts(j)%dirs(i)%vlags = avg_ivario%cuts(j)%dirs(i)%vlags &
+                                                     + expivario
+               end do
+            end do
+         end if
+
+         ! runs
+         if (avg3 .gt. 0) then
+            do i = 1, ncut
+               cumruns = 0
+               do j = 1, ndh
+                  iarr = imix(udhidx(j) + 1:udhidx(j + 1), i)
+                  call binary_runs(iarr, maxrun, expruns)
+                  cumruns = cumruns + expruns
+               end do
+               avg_runs(:, i) = avg_runs(:, i) + cumruns
+            end do
+         end if
+
+         ! npoint
+         if (avg4 .gt. 0) then
+            do i = 1, ncut
+               call npoint_connect(imix(:, i), nstep, ndh, udhidx, phi_n)
+               avg_npoint(:, i) = avg_npoint(:, i) + phi_n
+            end do
+         end if
+      end do
+
+      ! take the averages
+      do i = 1, ndir
+         if (avg1 .gt. 0) then
+            avg_vario%dirs(i)%vlags = avg_vario%dirs(i)%vlags/nreals
+         end if
+         do j = 1, ncut
+            if (avg2 .gt. 0) then
+               avg_ivario%cuts(j)%dirs(i)%vlags = avg_ivario%cuts(j)%dirs(i)%vlags/nreals
+            end if
+         end do
+      end do
+
+      do j = 1, ncut
+         if (avg3 .gt. 0) avg_runs(:, j) = avg_runs(:, j)/nreals
+         if (avg4 .gt. 0) avg_npoint(:, j) = avg_npoint(:, j)/nreals
+      end do
+
+   end subroutine avg_obj
 
    subroutine obj_vario(mix, expsill, objt)
 
@@ -493,6 +600,27 @@ contains
       objt = objt*objscale(1)
 
    end subroutine obj_vario
+
+   subroutine obj_vario_avg(avg_vario, objt)
+
+      ! continuous variogram component
+      type(vario_array), intent(in) :: avg_vario
+      real(8), intent(inout) :: objt
+
+      real(8) :: mse
+      integer :: i
+
+      objt = 0.d0
+
+      do i = 1, ndir
+         call vario_mse(avg_vario%dirs(i)%vlags, target_vario%dirs(i)%vlags, &
+                        varlagdist%dirs(i)%vlags, dble(idwpow), mse)
+         objt = objt + mse
+      end do
+
+      objt = objt*objscale(1)
+
+   end subroutine obj_vario_avg
 
    subroutine obj_ivario(imix, iexpsills, objt, tw)
 
@@ -525,6 +653,34 @@ contains
       objt = objt*objscale(2)
 
    end subroutine obj_ivario
+
+   subroutine obj_ivario_avg(avg_ivario, objt, tw)
+
+      ! indicator variogram component
+      type(ivario_array), intent(in) :: avg_ivario
+      real(8), intent(inout) :: objt
+      real(8), optional :: tw(:) ! threshold weights
+
+      real(8) :: mse
+      integer :: i, j
+
+      objt = 0.d0
+
+      do j = 1, ncut
+         do i = 1, ndir
+            call vario_mse(avg_ivario%cuts(j)%dirs(i)%vlags, target_ivario%cuts(j)%dirs(i)%vlags, &
+                           varlagdist%dirs(i)%vlags, dble(idwpow), mse)
+            if (present(tw)) then
+               objt = objt + mse*threshwt(j)
+            else
+               objt = objt + mse
+            end if
+         end do
+      end do
+
+      objt = objt*objscale(2)
+
+   end subroutine obj_ivario_avg
 
    subroutine obj_runs(imix, objt, tw)
 
@@ -559,6 +715,30 @@ contains
 
    end subroutine obj_runs
 
+   subroutine obj_runs_avg(avg_runs, objt, tw)
+
+      ! cumulative run frequency component
+      real(8), intent(in) :: avg_runs(:, :)
+      real(8), intent(inout) :: objt
+      real(8), optional :: tw(:) ! threshold weights
+      real(8) :: mse
+      integer :: i, j
+
+      objt = 0.d0
+
+      do i = 1, ncut
+         mse = sum((dble(target_runs(:, i)) - avg_runs(:, i))**2)
+         if (present(tw)) then
+            objt = objt + mse*threshwt(i)
+         else
+            objt = objt + mse
+         end if
+      end do
+
+      objt = objt*objscale(3)
+
+   end subroutine obj_runs_avg
+
    subroutine obj_npoint(imix, objt, tw)
 
       ! npoint connectivity component
@@ -585,6 +765,30 @@ contains
       objt = objt*objscale(4)
 
    end subroutine obj_npoint
+
+   subroutine obj_npoint_avg(avg_npoint, objt, tw)
+
+      ! npoint connectivity component
+      real(8), intent(in) :: avg_npoint(:, :)
+      real(8), intent(inout) :: objt
+      real(8), optional :: tw(:) ! threshold weights
+      real(8) :: mse
+      integer :: i
+
+      objt = 0.d0
+
+      do i = 1, ncut
+         mse = sum((target_npoint(:, i) - avg_npoint(:, i))**2)
+         if (present(tw)) then
+            objt = objt + mse*threshwt(i)
+         else
+            objt = objt + mse
+         end if
+      end do
+
+      objt = objt*objscale(4)
+
+   end subroutine obj_npoint_avg
 
    subroutine obj_data(mix, objt)
 

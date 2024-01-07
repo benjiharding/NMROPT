@@ -1,7 +1,7 @@
 module de_mod
 
    use geostat
-   use objective_mod, only: obj_nmr, obj_nmr_vect, pobj_nmr, pobj_nmr_vect
+   use objective_mod, only: obj_nmr, obj_nmr_avg, pobj_nmr, pobj_nmr_avg
    use types_mod
    use mtmod, only: grnd
    use constants
@@ -298,10 +298,11 @@ contains
          !$omp PARALLEL DEFAULT(NONE) &
          !$omp FIRSTPRIVATE(nnet, ysimd) &
          !$omp PRIVATE(mutant_loc, trial_loc, trial_denorm_loc, idxs_loc,  &
-         !$omp idx_loc, pf, id, first, last) &
+         !$omp idx_loc, pf, id, first, last, avg_vario, avg_ivario, avg_runs, &
+         !$omp avg_npoint) &
          !$omp SHARED(dims, pop, popsize, mut, crossp, min_b, diff, func,  &
          !$omp num_threads, pfit, best_idx, trials, trials_denorm, &
-         !$omp yref, ttable, sill, isills)
+         !$omp yref, ttable, sill, isills, thresholds)
 
          id = omp_get_thread_num()
          first = (id*popsize)/num_threads + 1
@@ -314,8 +315,8 @@ contains
             mutant_loc = c2b1_mutation(idxs_loc, best_idx, idx_loc, dims, pop, mut, mut)
             trial_loc = crossover(mutant_loc, crossp, pop(:, idx_loc), dims)
             trial_denorm_loc = min_b(:, 1) + trial_loc*diff(:, 1)
-            call pobj_nmr(trial_denorm_loc, nnet, ysimd, pf)
-            ! call pobj_nmr_vect(trial_denorm_loc, nnet, ysimd, pf)
+            ! call pobj_nmr(trial_denorm_loc, nnet, ysimd, pf)
+            call pobj_nmr_avg(trial_denorm_loc, nnet, ysimd, pf)
             pfit(idx_loc) = pf
             trials(:, idx_loc) = trial_loc
             trials_denorm(:, idx_loc) = trial_denorm_loc
@@ -483,8 +484,8 @@ contains
       integer :: ifunc
 
       ! default behaviour
-      if (ifunc .eq. 0) call obj_nmr(z, v)
-      ! if (ifunc .eq. 0) call obj_nmr_vect(z, v)
+      ! if (ifunc .eq. 0) call obj_nmr(z, v)
+      if (ifunc .eq. 0) call obj_nmr_avg(z, v)
 
       ! unit testing
       if (ifunc .eq. 1) call ackley(z, v)
