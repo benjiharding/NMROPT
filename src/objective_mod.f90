@@ -184,7 +184,7 @@ contains
       real(8), allocatable :: vect(:), vect_denorm(:), min_b(:), max_b(:), diff(:)
       real(8), allocatable :: trial(:), trial_denorm(:)
       real(8) :: objinit(5), objdelta(5)
-      integer :: i, j
+      integer :: i, j, ireal
 
       objinit = 0.d0
       objdelta = 0.d0
@@ -248,7 +248,8 @@ contains
          call build_refcdf(nsamp, yref, nnet, ttable)
 
          ! evalute the random vector
-         call network_forward(nnet, ysimd(:, :, 1), AL, .true., nnet%norm, ttable)
+         ireal = floor(grnd()*nreals + 1)
+         call network_forward(nnet, ysimd(:, :, ireal), AL, .true., nnet%norm, ttable)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
          if (vario .gt. 0) then
