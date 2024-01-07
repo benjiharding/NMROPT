@@ -184,7 +184,7 @@ contains
       real(8), allocatable :: vect(:), vect_denorm(:), min_b(:), max_b(:), diff(:)
       real(8), allocatable :: trial(:), trial_denorm(:)
       real(8) :: objinit(5), objdelta(5)
-      integer :: i, j
+      integer :: i, ii, j
 
       objinit = 0.d0
       objdelta = 0.d0
@@ -231,17 +231,17 @@ contains
       call obj_data(AL, objt_data)
       objinit(5) = objt_data
 
-      ! iterate over the pertubations
+      ! iterate over the random pertubations
       do i = 1, MAXPERT
 
-         ! generate a random vector within the bounds
-         do j = 1, size(vect)
-            trial(j) = grnd()
-         end do
-         trial_denorm = min_b + trial*diff
+         ! random vector index
+         ii = floor(grnd()*size(vect) + 1)
+
+         ! generate a random value within the bounds
+         vect_denorm(ii) = min_b(ii) + grnd()*diff(ii)
 
          ! get matrices for this trial vector
-         call vector_to_matrices(trial_denorm, nnet)
+         call vector_to_matrices(vect_denorm, nnet)
 
          ! build transform for this trial vector and
          ! use the same ttable for all realizations
