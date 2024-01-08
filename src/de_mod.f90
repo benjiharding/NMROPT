@@ -298,8 +298,8 @@ contains
          !$omp PARALLEL DEFAULT(NONE) &
          !$omp FIRSTPRIVATE(nnet, ysimd) &
          !$omp PRIVATE(mutant_loc, trial_loc, trial_denorm_loc, idxs_loc,  &
-         !$omp idx_loc, pf, id, first, last, avg_vario, avg_ivario, avg_runs, &
-         !$omp avg_npoint) &
+         !$omp idx_loc, pf, id, first, last, avg_vario, avg_ivario, &
+         !$omp avg_runs, avg_npoint) &
          !$omp SHARED(dims, pop, popsize, mut, crossp, min_b, diff, func,  &
          !$omp num_threads, pfit, best_idx, trials, trials_denorm, &
          !$omp yref, ttable, sill, isills, thresholds)
