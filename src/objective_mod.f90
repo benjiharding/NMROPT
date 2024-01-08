@@ -188,7 +188,7 @@ contains
       real(8), allocatable :: vect(:), vect_denorm(:), min_b(:), max_b(:), diff(:)
       real(8), allocatable :: trial(:), trial_denorm(:)
       real(8) :: objinit(5), objdelta(5)
-      integer :: i, j
+      integer :: i, j, ireal
 
       objinit = 0.d0
       objdelta = 0.d0
@@ -211,25 +211,24 @@ contains
       ! use the same ttable for all realizations
       call build_refcdf(nsamp, yref, nnet, ttable)
 
-      ! the choice of the first realization here is arbitrary
-      call network_forward(nnet, ysimd(:, :, 1), AL, .true., nnet%norm, ttable)
-      call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
+      ! calculate component averages
+      call avg_obj(ysimd, nreals, vario, ivario, runs, npoint)
 
       ! initilaize a starting value for each component
       if (vario .gt. 0) then
-         call obj_vario(AL, sill, objt_vario)
+         call obj_vario_avg(avg_vario, objt_vario)
          objinit(1) = objt_vario
       end if
       if (ivario .gt. 0) then
-         call obj_ivario(AL_i, isills, objt_ivario)
+         call obj_ivario_avg(avg_ivario, objt_ivario, threshwt)
          objinit(2) = objt_ivario
       end if
       if (runs .gt. 0) then
-         call obj_runs(AL_i, objt_runs)
+         call obj_runs_avg(avg_runs, objt_runs, threshwt)
          objinit(3) = objt_runs
       end if
       if (npoint .gt. 0) then
-         call obj_npoint(AL_i, objt_npt)
+         call obj_npoint_avg(avg_npoint, objt_npt, threshwt)
          objinit(4) = objt_npt
       end if
       call obj_data(AL, objt_data)
@@ -251,37 +250,36 @@ contains
          ! use the same ttable for all realizations
          call build_refcdf(nsamp, yref, nnet, ttable)
 
-         ! evalute the random vector
-         call network_forward(nnet, ysimd(:, :, 1), AL, .true., nnet%norm, ttable)
-         call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
+         ! calculate component averages
+         call avg_obj(ysimd, nreals, vario, ivario, runs, npoint)
 
          if (vario .gt. 0) then
-            call obj_vario(AL, sill, objt_vario)
+            call obj_vario_avg(avg_vario, objt_vario)
             if (objt_vario .lt. 0.0) objt_vario = objinit(1)
-            objdelta(1) = objdelta(1) + abs(objinit(1) - objt_vario)
+            objdelta(1) = objdelta(1) + abs(objt_vario - objinit(1))
          end if
 
          if (ivario .gt. 0) then
-            call obj_ivario(AL_i, isills, objt_ivario)
+            call obj_ivario_avg(avg_ivario, objt_ivario, threshwt)
             if (objt_ivario .lt. 0.0) objt_ivario = objinit(2)
-            objdelta(2) = objdelta(2) + abs(objinit(2) - objt_ivario)
+            objdelta(2) = objdelta(2) + abs(objt_ivario - objinit(2))
          end if
 
          if (runs .gt. 0) then
-            call obj_runs(AL_i, objt_runs)
+            call obj_runs_avg(avg_runs, objt_runs, threshwt)
             if (objt_runs .lt. 0.0) objt_runs = objinit(3)
-            objdelta(3) = objdelta(3) + abs(objinit(3) - objt_runs)
+            objdelta(3) = objdelta(3) + abs(objt_runs - objinit(3))
          end if
 
          if (npoint .gt. 0) then
-            call obj_npoint(AL_i, objt_npt)
+            call obj_npoint_avg(avg_npoint, objt_npt, threshwt)
             if (objt_npt .lt. 0.0) objt_npt = objinit(4)
-            objdelta(4) = objdelta(4) + abs(objinit(4) - objt_npt)
+            objdelta(4) = objdelta(4) + abs(objt_npt - objinit(4))
          end if
 
          call obj_data(AL, objt_data)
          if (objt_data .lt. 0.0) objt_data = objinit(5)
-         objdelta(5) = objdelta(5) + abs(objinit(5) - objt_data)
+         objdelta(5) = objdelta(5) + abs(objt_data - objinit(5))
 
       end do
 
@@ -290,7 +288,7 @@ contains
       if (ivario .gt. 0) objscale(2) = MAXPERT/objdelta(2)
       if (runs .gt. 0) objscale(3) = MAXPERT/objdelta(3)
       if (npoint .gt. 0) objscale(4) = MAXPERT/objdelta(4)
-      objscale(5) = MAXPERT/objdelta(5)
+      objscale(5) = 1.d0  !MAXPERT/objdelta(5)
 
       ! user defined scaling if required
       objscale(1) = userfac(1)*objscale(1)
