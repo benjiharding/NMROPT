@@ -296,11 +296,11 @@ contains
          ! begin parallel region
          !
          !$omp PARALLEL DEFAULT(NONE) &
-         !$omp FIRSTPRIVATE(nnet, ysimd) &
+         !$omp FIRSTPRIVATE(nnet) &
          !$omp PRIVATE(mutant_loc, trial_loc, trial_denorm_loc, idxs_loc,  &
-         !$omp idx_loc, pf, id, first, last) &
-         !$omp SHARED(dims, pop, popsize, mut, crossp, min_b, diff, func,  &
-         !$omp num_threads, pfit, best_idx, trials, trials_denorm, &
+         !$omp idx_loc, pf, id, first, last)  &
+         !$omp SHARED(ysimd, dims, pop, popsize, mut, crossp, min_b, diff,  &
+         !$omp func, num_threads, pfit, best_idx, trials, trials_denorm, &
          !$omp yref, ttable, sill, isills)
 
          id = omp_get_thread_num()
