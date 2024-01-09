@@ -487,46 +487,46 @@ contains
 
       ! parse indicator variogram models
       if (ivario .gt. 0) then
-         do ic = 1, ncut
-            read (lin, *, iostat=test) ivmod(ic)%nst, ivmod(ic)%c0
+      do ic = 1, ncut
+         read (lin, *, iostat=test) ivmod(ic)%nst, ivmod(ic)%c0
+         if (test .ne. 0) stop "ERROR in parameter file"
+         write (*, *) '  inst, ic0: ', ivmod(ic)%nst, ivmod(ic)%c0
+         if (ivmod(ic)%nst .gt. MAXNST) then
+            write (*, *) 'inst must be less than or equal to ', MAXNST
+            stop
+         end if
+
+         allocate (ivmod(ic)%it(ivmod(ic)%nst), ivmod(ic)%cc(ivmod(ic)%nst), &
+                   ivmod(ic)%ang1(ivmod(ic)%nst), ivmod(ic)%ang2(ivmod(ic)%nst), &
+                   ivmod(ic)%ang3(ivmod(ic)%nst), ivmod(ic)%aa(ivmod(ic)%nst), &
+                   ivmod(ic)%anis1(ivmod(ic)%nst), ivmod(ic)%anis2(ivmod(ic)%nst), &
+                   ivmod(ic)%ahmin(ivmod(ic)%nst), ivmod(ic)%avert(ivmod(ic)%nst), stat=test)
+         if (test .ne. 0) stop "allocation failed due to insufficient memory!"
+
+         do j = 1, ivmod(ic)%nst
+            read (lin, *, iostat=test) ivmod(ic)%it(j), ivmod(ic)%cc(j), ivmod(ic)%ang1(j), &
+               ivmod(ic)%ang2(j), ivmod(ic)%ang3(j)
             if (test .ne. 0) stop "ERROR in parameter file"
-            write (*, *) '  inst, ic0: ', ivmod(ic)%nst, ivmod(ic)%c0
-            if (ivmod(ic)%nst .gt. MAXNST) then
-               write (*, *) 'inst must be less than or equal to ', MAXNST
-               stop
-            end if
-
-            allocate (ivmod(ic)%it(ivmod(ic)%nst), ivmod(ic)%cc(ivmod(ic)%nst), &
-                      ivmod(ic)%ang1(ivmod(ic)%nst), ivmod(ic)%ang2(ivmod(ic)%nst), &
-                      ivmod(ic)%ang3(ivmod(ic)%nst), ivmod(ic)%aa(ivmod(ic)%nst), &
-                      ivmod(ic)%anis1(ivmod(ic)%nst), ivmod(ic)%anis2(ivmod(ic)%nst), &
-                      ivmod(ic)%ahmin(ivmod(ic)%nst), ivmod(ic)%avert(ivmod(ic)%nst), stat=test)
-            if (test .ne. 0) stop "allocation failed due to insufficient memory!"
-
-            do j = 1, ivmod(ic)%nst
-               read (lin, *, iostat=test) ivmod(ic)%it(j), ivmod(ic)%cc(j), ivmod(ic)%ang1(j), &
-                  ivmod(ic)%ang2(j), ivmod(ic)%ang3(j)
-               if (test .ne. 0) stop "ERROR in parameter file"
-               read (lin, *, iostat=test) ivmod(ic)%aa(j), ivmod(ic)%ahmin(j), ivmod(ic)%avert(j)
-               if (test .ne. 0) stop "ERROR in parameter file"
-               ivmod(ic)%anis1(j) = ivmod(ic)%ahmin(j)/max(ivmod(ic)%aa(j), EPSLON)
-               ivmod(ic)%anis2(j) = ivmod(ic)%avert(j)/max(ivmod(ic)%aa(j), EPSLON)
-               write (*, *) ' iit, icc, iang[1,2,3]; ', ivmod(ic)%it(j), ivmod(ic)%cc(j), &
-                  ivmod(ic)%ang1(j), ivmod(ic)%ang2(j), ivmod(ic)%ang3(j)
-               write (*, *) ' a1 a2 a3: ', ivmod(ic)%aa(j), ivmod(ic)%ahmin(j), ivmod(ic)%avert(j)
-            end do
+            read (lin, *, iostat=test) ivmod(ic)%aa(j), ivmod(ic)%ahmin(j), ivmod(ic)%avert(j)
+            if (test .ne. 0) stop "ERROR in parameter file"
+            ivmod(ic)%anis1(j) = ivmod(ic)%ahmin(j)/max(ivmod(ic)%aa(j), EPSLON)
+            ivmod(ic)%anis2(j) = ivmod(ic)%avert(j)/max(ivmod(ic)%aa(j), EPSLON)
+            write (*, *) ' iit, icc, iang[1,2,3]; ', ivmod(ic)%it(j), ivmod(ic)%cc(j), &
+               ivmod(ic)%ang1(j), ivmod(ic)%ang2(j), ivmod(ic)%ang3(j)
+            write (*, *) ' a1 a2 a3: ', ivmod(ic)%aa(j), ivmod(ic)%ahmin(j), ivmod(ic)%avert(j)
          end do
+      end do
 
-         call set_sill(ivmod)
-         call set_rotmatrix(ivmod)
+      call set_sill(ivmod)
+      call set_rotmatrix(ivmod)
 
-         ! basic warning for potential errors
-         do i = 1, nvarg
-            if ((ivmod(ic)%sill - 1.d0 .gt. EPSLON) .and. (isill .eq. 1)) then
-               write (*, *) "WARNING: standardizing exp variogram sill but &
-   &            variogram model sill is not 1.0"
-            end if
-         end do
+      ! basic warning for potential errors
+      do ic = 1, ncut
+         if ((ivmod(ic)%sill - 1.d0 .gt. EPSLON) .and. (isill .eq. 1)) then
+            write (*, *) "WARNING: standardizing exp variogram sill but &
+&            variogram model sill is not 1.0"
+         end if
+      end do
 
       end if
 
