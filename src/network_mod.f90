@@ -189,9 +189,11 @@ contains
          W = transpose(net%layer(i)%nnwts)
          b = transpose(net%layer(i)%nnbias)
 
-         ! forward pass - BN prior to activation
+         ! forward pass
          b = spread(b(1, :), 1, size(A_prev, dim=1))
          Zmat = matmul(A_prev, W) + b
+
+         ! BN prior to activation if required
          if (norm) then
             call normalize_input(Zmat, Znorm, net%layer(i)%sw(1), &
                                  calc_mom=.true., gmma=net%layer(i)%gmma, &
@@ -209,6 +211,7 @@ contains
       bL = spread(bL(1, :), 1, size(Amat, dim=1))
       ZL = matmul(Amat, WL) + bL
 
+      ! BN prior to activation if required
       if (norm) then
          call normalize_input(ZL, ZLnorm, nf=1, calc_mom=.true., &
                               gmma=net%layer(net%nl - 1)%gmma, &
