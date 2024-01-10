@@ -177,7 +177,7 @@ contains
       write (lout, "(A)") "x"
       write (lout, "(A)") "y"
       write (lout, "(A)") "z"
-      write (lout, "(A)") "nmr value"
+      write (lout, "(A)") "NMR value"
 
       ! network weights
       read (lin, '(a256)', iostat=test) wtsfile
@@ -273,6 +273,11 @@ contains
       ! number of cutoffs
       read (lin, *, iostat=test) ncut
       if (test .ne. 0) stop "ERROR in parameter file"
+
+      ! write indicator columns to output file
+      do ic = 1, ncut
+         write (lout, "(A, i1)") "Threshold ", ic
+      end do
 
       ! thresholds
       allocate (thresholds(ncut), stat=test)

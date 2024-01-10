@@ -34,7 +34,7 @@ contains
                                   opt_AL_i(:, :, i))
          do j = 1, ndata
             write (lout, "(*(g14.8,1x))") dhids(j), xyz(1, j), xyz(2, j), &
-               xyz(3, j), opt_AL(j, i)
+               xyz(3, j), opt_AL(j, i), (opt_AL_i(j, ic, i), ic=1, ncut)
          end do
       end do
 
