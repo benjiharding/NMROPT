@@ -62,14 +62,6 @@ contains
             c0(i) = xp
          end do
 
-         ! !
-         ! ! TEST DAMPENING THE NUGGET
-         ! !
-         ! c0 = c0*0.001d0
-         ! !
-         ! ! TEST DAMPENING THE NUGGET
-         ! !
-
          ! last factor is nugget
          ysimd(:, ngvarg + 1, ireal) = c0
 
