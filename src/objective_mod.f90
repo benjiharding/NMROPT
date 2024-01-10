@@ -169,7 +169,7 @@ contains
       write (*, "(A*(g14.8,1x))") "Indicator variogram component: ", objscale(2)
       write (*, "(A*(g14.8,1x))") "Runs component: ", objscale(3)
       write (*, "(A*(g14.8,1x))") "N-point component: ", objscale(4)
-      write (*, "(A*(g14.8,1x))") "Data component: ", objscale(5)
+      ! write (*, "(A*(g14.8,1x))") "Data component: ", objscale(5)
 
    end subroutine init_objective
 
@@ -331,7 +331,7 @@ contains
          if (ivario .gt. 0) call obj_ivario(AL_i, isills, objt_ivario, threshwt)
          if (runs .gt. 0) call obj_runs(AL_i, objt_runs, threshwt)
          if (npoint .gt. 0) call obj_npoint(AL_i, objt_npt, threshwt)
-         call obj_data(AL, objt_data)
+         ! call obj_data(AL, objt_data)
 
          gobjt = gobjt + objt_vario + objt_ivario + objt_runs + objt_npt + objt_data
 
