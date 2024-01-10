@@ -39,6 +39,8 @@
 *.csv
 *.pdf
 *.txt
+*.xls
+*.xlsx
 nb/*
 .vscode
 LAPACK/*
