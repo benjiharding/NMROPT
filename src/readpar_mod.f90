@@ -169,16 +169,6 @@ contains
       call chknam(outfile, 256)
       write (*, "(2a)") '  output file: ', trim(adjustl(outfile))
 
-      ! open the output file and write headers
-      open (lout, file=outfile, status="UNKNOWN")
-      write (lout, "(A)") "Network Mixture"
-      write (lout, "(i1)") 5
-      write (lout, "(A)") "dhid"
-      write (lout, "(A)") "x"
-      write (lout, "(A)") "y"
-      write (lout, "(A)") "z"
-      write (lout, "(A)") "NMR value"
-
       ! network weights
       read (lin, '(a256)', iostat=test) wtsfile
       if (test .ne. 0) stop "ERROR in parameter file"
@@ -273,6 +263,16 @@ contains
       ! number of cutoffs
       read (lin, *, iostat=test) ncut
       if (test .ne. 0) stop "ERROR in parameter file"
+
+      ! open the output file and write headers
+      open (lout, file=outfile, status="UNKNOWN")
+      write (lout, "(A)") "Network Mixture"
+      write (lout, "(i1)") 5 + ncut
+      write (lout, "(A)") "dhid"
+      write (lout, "(A)") "x"
+      write (lout, "(A)") "y"
+      write (lout, "(A)") "z"
+      write (lout, "(A)") "NMR value"
 
       ! write indicator columns to output file
       do ic = 1, ncut
