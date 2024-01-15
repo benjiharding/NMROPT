@@ -1,7 +1,7 @@
 module de_mod
 
    use geostat
-   use objective_mod, only: obj_nmr, obj_nmr_vect, pobj_nmr, pobj_nmr_vect
+   use objective_mod, only: obj_nmr, pobj_nmr
    use types_mod
    use mtmod, only: grnd
    use constants

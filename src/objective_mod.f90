@@ -341,43 +341,6 @@ contains
 
    end subroutine obj_nmr
 
-   subroutine obj_nmr_vect(v, gobjt)
-
-      ! network model of regionalization objective
-      ! returns scalar expected objective value
-
-      ! this version has no components, rather it is
-      ! data reconstruction error
-
-      real(8), intent(in) :: v(:) ! trial vector
-      real(8), intent(out) :: gobjt ! global temp obj value
-      real(8) :: sqerr, reg
-      integer :: ireal
-
-      gobjt = 0.d0
-
-      ! get matrices for this trial vector
-      call vector_to_matrices(v, nnet)
-
-      ! build transform for this trial vector and
-      ! use the same ttable for all realizations
-      call build_refcdf(nsamp, yref, nnet, ttable)
-
-      ! calculate regularization values if required
-      call calc_regularization(nnet, reg)
-
-      do ireal = 1, nreals
-
-         call network_forward(nnet, ysimd(:, :, ireal), AL, .true., nnet%norm, ttable)
-         sqerr = sum((AL - var)**2)
-         gobjt = gobjt + sqerr
-
-      end do
-
-      gobjt = (gobjt + reg)/nreals
-
-   end subroutine obj_nmr_vect
-
    subroutine pobj_nmr(v, net, simd, gobjt)
 
       ! parallel network model of regionalization objective
@@ -429,46 +392,6 @@ contains
       gobjt = (gobjt + reg)/nreals
 
    end subroutine pobj_nmr
-
-   subroutine pobj_nmr_vect(v, net, simd, gobjt)
-
-      ! parallel network model of regionalization objective
-      ! returns scalar expected objective value
-
-      ! this version has no components, rather it is
-      ! data reconstruction error
-
-      real(8), intent(in) :: v(:) ! trial vector
-      type(network), intent(inout) :: net
-      real(8), intent(in) :: simd(:, :, :)
-      real(8), intent(out) :: gobjt ! global temp obj value
-      real(8) :: mix(ndata)
-      real(8) :: sqerr, reg
-      integer :: ireal
-
-      gobjt = 0.d0
-
-      ! get matrices for this trial vector
-      call vector_to_matrices(v, net)
-
-      ! build transform for this trial vector and
-      ! use the same ttable for all realizations
-      call build_refcdf(nsamp, yref, net, ttable)
-
-      ! calculate regularization values if required
-      call calc_regularization(net, reg)
-
-      do ireal = 1, nreals
-
-         call network_forward(net, simd(:, :, ireal), mix, .true., net%norm, ttable)
-         sqerr = sum((mix - var)**2)
-         gobjt = gobjt + sqerr
-
-      end do
-
-      gobjt = (gobjt + reg)/nreals
-
-   end subroutine pobj_nmr_vect
 
    subroutine obj_vario(mix, expsill, objt)
 
