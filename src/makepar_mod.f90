@@ -46,6 +46,7 @@ contains
       write (99, "(A)") 'target_npoint.out                 - npoint target file'
       write (99, "(A)") '0.8 0.5 1.0 15 1000               - DE parameters: F, CR lo, CR hi, pop. size, its'
       write (99, "(A)") '-5 5                              - DE bounds: lower, upper'
+      write (99, "(A)") 'omega.out                         - file with factor omega bounds'
       write (99, "(A)") '1                                 - num. threads for parallel DE (1=serial, -1 for all)'
       write (99, "(A)") '2                                 - number of experimental variogram directions'
       write (99, "(A)") '0.0 22.5 1000 0.0 22.5 1000 0.0   - dir 01: azm,azmtol,bandhorz,dip,diptol,bandvert,tilt'

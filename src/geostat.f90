@@ -56,6 +56,7 @@ module geostat
    integer :: maxrun, nstep ! maximum runs and connected steps
 
    ! optimization initialization
+   real(8), allocatable :: min_b(:, :), max_b(:, :)
    real(8) :: bmin, bmax
    real(8) :: userfac(4)
 
