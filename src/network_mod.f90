@@ -18,6 +18,113 @@ module network_mod
 
 contains
 
+   ! subroutine init_network(net)
+
+   !    ! initialize network layer parameters and weight/bias matrices
+
+   !    ! parameters
+   !    type(network), intent(inout) :: net
+
+   !    ! local variables
+   !    integer, allocatable :: nwts(:), nbias(:)
+   !    integer, allocatable :: ngmma(:), nbeta(:)
+   !    real(8) :: p, xp
+   !    integer :: i, j, ierr
+
+   !    ! allocate some counters matrix indices
+   !    allocate (nwts(net%nl - 1), nbias(net%nl - 1))
+   !    allocate (ngmma(net%nl - 1), nbeta(net%nl - 1))
+   !    allocate (net%iwts(net%nl), net%ibias(net%nl))
+   !    allocate (net%igmma(net%nl), net%ibeta(net%nl))
+
+   !    ! number of weights
+   !    do i = 1, net%nl - 1
+   !       nwts(i) = net%ld(i)*net%ld(i + 1)
+   !    end do
+
+   !    ! number of bias terms
+   !    do j = 2, net%nl
+   !       nbias(j - 1) = net%ld(j)
+   !    end do
+
+   !    ! trainable loc and scale for batch norm
+   !    if (net%norm) then
+   !       do j = 2, net%nl
+   !          ngmma(j - 1) = net%ld(j)
+   !          nbeta(j - 1) = net%ld(j)
+   !       end do
+   !    end if
+
+   !    ! weight matrix indices from cumulative sums
+   !    net%iwts(1) = 0
+   !    net%iwts(2:) = nwts
+   !    do i = 2, net%nl
+   !       net%iwts(i) = net%iwts(i - 1) + nwts(i - 1)
+   !    end do
+
+   !    ! bias vector indices from cumulative sums
+   !    net%ibias(1) = sum(nwts)
+   !    net%ibias(2:) = nbias
+   !    do j = 2, net%nl
+   !       net%ibias(j) = net%ibias(j - 1) + nbias(j - 1)
+   !    end do
+
+   !    if (net%norm) then
+   !       ! gamma vector indices from cumulative sums
+   !       net%igmma(1) = sum(nbias) + sum(nwts)
+   !       net%igmma(2:) = ngmma
+   !       do j = 2, net%nl
+   !          net%igmma(j) = net%igmma(j - 1) + ngmma(j - 1)
+   !       end do
+
+   !       ! beta vector indices from cumulative sums
+   !       net%ibeta(1) = sum(nbias) + sum(nwts) + sum(ngmma)
+   !       net%ibeta(2:) = nbeta
+   !       do j = 2, net%nl
+   !          net%ibeta(j) = net%ibeta(j - 1) + nbeta(j - 1)
+   !       end do
+   !    end if
+
+   !    ! allocate network weight and bias matrices
+   !    allocate (net%layer(net%nl - 1)) ! excludes input layer
+   !    do i = 1, net%nl - 1
+
+   !       ! get matrix shapes
+   !       net%layer(i)%sw = [net%ld(i + 1), net%ld(i)] ! weight matrix shape
+   !       net%layer(i)%sb = [net%ld(i + 1), 1] ! bias vector shape
+
+   !       ! allocate matrices
+   !       allocate (net%layer(i)%nnwts(net%layer(i)%sw(1), net%layer(i)%sw(2)))
+   !       allocate (net%layer(i)%nnbias(net%layer(i)%sb(1), net%layer(i)%sb(2)))
+
+   !       ! allocate moment vectors
+   !       allocate (net%layer(i)%nnmu(net%layer(i)%sb(1)))
+   !       allocate (net%layer(i)%nnsig(net%layer(i)%sb(1)))
+
+   !       ! allocate loc and scale vectors
+   !       allocate (net%layer(i)%gmma(net%layer(i)%sb(1)))
+   !       allocate (net%layer(i)%beta(net%layer(i)%sb(1)))
+   !    end do
+
+   !    ! total number of dimensions
+   !    if (net%norm) then
+   !       net%dims = sum(nwts) + sum(nbias) + sum(ngmma) + sum(nbeta)
+   !    else
+   !       net%dims = sum(nwts) + sum(nbias)
+   !    end if
+
+   !    ! initialize independent N(0,1) y realizations for ttable
+   !    allocate (yref(nsamp, ngvarg + 1))
+   !    do j = 1, ngvarg + 1
+   !       do i = 1, nsamp
+   !          p = grnd()
+   !          call gauinv(p, xp, ierr)
+   !          yref(i, j) = xp
+   !       end do
+   !    end do
+
+   ! end subroutine init_network
+
    subroutine init_network(net)
 
       ! initialize network layer parameters and weight/bias matrices
@@ -26,92 +133,14 @@ contains
       type(network), intent(inout) :: net
 
       ! local variables
-      integer, allocatable :: nwts(:), nbias(:)
-      integer, allocatable :: ngmma(:), nbeta(:)
       real(8) :: p, xp
       integer :: i, j, ierr
 
-      ! allocate some counters matrix indices
-      allocate (nwts(net%nl - 1), nbias(net%nl - 1))
-      allocate (ngmma(net%nl - 1), nbeta(net%nl - 1))
-      allocate (net%iwts(net%nl), net%ibias(net%nl))
-      allocate (net%igmma(net%nl), net%ibeta(net%nl))
+      net%dims = 2*net%ld(1) ! 2L trainable parameters
 
-      ! number of weights
-      do i = 1, net%nl - 1
-         nwts(i) = net%ld(i)*net%ld(i + 1)
-      end do
-
-      ! number of bias terms
-      do j = 2, net%nl
-         nbias(j - 1) = net%ld(j)
-      end do
-
-      ! trainable loc and scale for batch norm
-      if (net%norm) then
-         do j = 2, net%nl
-            ngmma(j - 1) = net%ld(j)
-            nbeta(j - 1) = net%ld(j)
-         end do
-      end if
-
-      ! weight matrix indices from cumulative sums
-      net%iwts(1) = 0
-      net%iwts(2:) = nwts
-      do i = 2, net%nl
-         net%iwts(i) = net%iwts(i - 1) + nwts(i - 1)
-      end do
-
-      ! bias vector indices from cumulative sums
-      net%ibias(1) = sum(nwts)
-      net%ibias(2:) = nbias
-      do j = 2, net%nl
-         net%ibias(j) = net%ibias(j - 1) + nbias(j - 1)
-      end do
-
-      if (net%norm) then
-         ! gamma vector indices from cumulative sums
-         net%igmma(1) = sum(nbias) + sum(nwts)
-         net%igmma(2:) = ngmma
-         do j = 2, net%nl
-            net%igmma(j) = net%igmma(j - 1) + ngmma(j - 1)
-         end do
-
-         ! beta vector indices from cumulative sums
-         net%ibeta(1) = sum(nbias) + sum(nwts) + sum(ngmma)
-         net%ibeta(2:) = nbeta
-         do j = 2, net%nl
-            net%ibeta(j) = net%ibeta(j - 1) + nbeta(j - 1)
-         end do
-      end if
-
-      ! allocate network weight and bias matrices
-      allocate (net%layer(net%nl - 1)) ! excludes input layer
-      do i = 1, net%nl - 1
-
-         ! get matrix shapes
-         net%layer(i)%sw = [net%ld(i + 1), net%ld(i)] ! weight matrix shape
-         net%layer(i)%sb = [net%ld(i + 1), 1] ! bias vector shape
-
-         ! allocate matrices
-         allocate (net%layer(i)%nnwts(net%layer(i)%sw(1), net%layer(i)%sw(2)))
-         allocate (net%layer(i)%nnbias(net%layer(i)%sb(1), net%layer(i)%sb(2)))
-
-         ! allocate moment vectors
-         allocate (net%layer(i)%nnmu(net%layer(i)%sb(1)))
-         allocate (net%layer(i)%nnsig(net%layer(i)%sb(1)))
-
-         ! allocate loc and scale vectors
-         allocate (net%layer(i)%gmma(net%layer(i)%sb(1)))
-         allocate (net%layer(i)%beta(net%layer(i)%sb(1)))
-      end do
-
-      ! total number of dimensions
-      if (net%norm) then
-         net%dims = sum(nwts) + sum(nbias) + sum(ngmma) + sum(nbeta)
-      else
-         net%dims = sum(nwts) + sum(nbias)
-      end if
+      ! allocate weight annd exponent arrays
+      allocate (net%awts(1, net%ld(1))) ! row vector
+      allocate (net%omega(net%ld(1)))
 
       ! initialize independent N(0,1) y realizations for ttable
       allocate (yref(nsamp, ngvarg + 1))
@@ -125,106 +154,139 @@ contains
 
    end subroutine init_network
 
-   subroutine network_forward(net, Ymat, AL, nstrans, norm, ttable)
+   ! subroutine network_forward(net, Ymat, AL, nstrans, norm, ttable)
 
-      ! forward pass through network
+   !    ! forward pass through network
 
-      ! iterate over layers(2:)
-      ! get number of connection in each layer (n^l * n^l-1)
-      ! get cumulative sum of connecitons to get 1D ids, ie for each matrix
-      ! do the same for the bias terms
-      ! on each iteration reshape the array slice to (n^l * n^l-1)
-      ! do matrix math and apply activations
-      ! linear activation on final layer followed by nscore
+   !    ! iterate over layers(2:)
+   !    ! get number of connection in each layer (n^l * n^l-1)
+   !    ! get cumulative sum of connecitons to get 1D ids, ie for each matrix
+   !    ! do the same for the bias terms
+   !    ! on each iteration reshape the array slice to (n^l * n^l-1)
+   !    ! do matrix math and apply activations
+   !    ! linear activation on final layer followed by nscore
+
+   !    ! parameters
+   !    type(network), intent(inout) :: net ! neural network object
+   !    real(8), intent(in) :: Ymat(:, :) ! simulated factors
+   !    logical, intent(in) :: nstrans ! nscore transform flag
+   !    logical, intent(in) :: norm ! normalize activations?
+   !    real(8), optional :: ttable(:, :) ! transform table
+
+   !    ! return
+   !    real(8), intent(inout) :: AL(:) ! output mixture vector
+
+   !    ! internal variables
+   !    procedure(afunc), pointer :: f_ptr => null()
+   !    real(8), allocatable :: Amat(:, :), A_prev(:, :), Anorm(:, :)
+   !    real(8), allocatable :: W(:, :), WL(:, :), b(:, :), bL(:, :), &
+   !                            Zmat(:, :), Znorm(:, :), ZL(:, :), ZLnorm(:, :)
+   !    real(8), allocatable :: vrg(:), tmp(:)
+   !    integer :: i, j, k, ierr
+
+   !    ! a quick check for transforms
+   !    if (nstrans .and. .not. present(ttable)) then
+   !       write (*, *) "Transform table must be present if normal scoring outputs"
+   !       stop
+   !    end if
+
+   !    ! initialize the activation matrix
+   !    Amat = Ymat
+
+   !    ! pointer to activation function
+   !    select case (net%af)
+   !    case (1)
+   !       f_ptr => sigmoid
+   !    case (2)
+   !       f_ptr => hyptan
+   !    case (3)
+   !       f_ptr => relu
+   !    case (4)
+   !       f_ptr => linear
+   !    case (5)
+   !       f_ptr => silu
+   !    case (6)
+   !       f_ptr => gelu
+   !    end select
+
+   !    ! hidden layers
+   !    do i = 1, net%nl - 2 ! excludes input and output
+
+   !       A_prev = Amat
+
+   !       ! transpose prior to forward pass
+   !       W = transpose(net%layer(i)%nnwts)
+   !       b = transpose(net%layer(i)%nnbias)
+
+   !       ! forward pass
+   !       b = spread(b(1, :), 1, size(A_prev, dim=1))
+   !       Zmat = matmul(A_prev, W) + b
+
+   !       ! BN prior to activation if required
+   !       if (norm) then
+   !          call normalize_input(Zmat, Znorm, net%layer(i)%sw(1), &
+   !                               calc_mom=.true., gmma=net%layer(i)%gmma, &
+   !                               beta=net%layer(i)%beta)
+   !       else
+   !          Znorm = Zmat
+   !       end if
+   !       Amat = f_ptr(Znorm)
+
+   !    end do
+
+   !    ! output layer
+   !    WL = transpose(net%layer(net%nl - 1)%nnwts)
+   !    bL = transpose(net%layer(net%nl - 1)%nnbias)
+   !    bL = spread(bL(1, :), 1, size(Amat, dim=1))
+   !    ZL = matmul(Amat, WL) + bL
+
+   !    ! BN prior to activation if required
+   !    if (norm) then
+   !       call normalize_input(ZL, ZLnorm, nf=1, calc_mom=.true., &
+   !                            gmma=net%layer(net%nl - 1)%gmma, &
+   !                            beta=net%layer(net%nl - 1)%beta)
+   !       ZL = ZLnorm
+   !    end if
+
+   !    ! linear activation and reduce dims
+   !    AL = ZL(:, 1)
+
+   !    ! normal score transform if required
+   !    if (nstrans) then
+   !       ! random despike and transform
+   !       do i = 1, ndata
+   !          AL(i) = AL(i) + grnd()*SMALLDBLE
+   !          call transform_to_refcdf(AL(i), ttable, AL(i), nsamp)
+   !       end do
+   !    end if
+
+   ! end subroutine network_forward
+
+   subroutine network_forward(net, Ymat, AL, nstrans, ttable)
 
       ! parameters
       type(network), intent(inout) :: net ! neural network object
       real(8), intent(in) :: Ymat(:, :) ! simulated factors
-      logical, intent(in) :: nstrans ! nscore transform flag
-      logical, intent(in) :: norm ! normalize activations?
       real(8), optional :: ttable(:, :) ! transform table
+      logical, intent(in) :: nstrans ! nscore transform flag
 
       ! return
       real(8), intent(inout) :: AL(:) ! output mixture vector
 
-      ! internal variables
-      procedure(afunc), pointer :: f_ptr => null()
-      real(8), allocatable :: Amat(:, :), A_prev(:, :), Anorm(:, :)
-      real(8), allocatable :: W(:, :), WL(:, :), b(:, :), bL(:, :), &
-                              Zmat(:, :), Znorm(:, :), ZL(:, :), ZLnorm(:, :)
-      real(8), allocatable :: vrg(:), tmp(:)
-      integer :: i, j, k, ierr
+      ! locals
+      real(8), allocatable :: Amat(:, :), ZL(:, :)
+      integer :: i
 
-      ! a quick check for transforms
-      if (nstrans .and. .not. present(ttable)) then
-         write (*, *) "Transform table must be present if normal scoring outputs"
-         stop
-      end if
-
-      ! initialize the activation matrix
+      ! forward pass; assumes single layer network
       Amat = Ymat
-
-      ! pointer to activation function
-      select case (net%af)
-      case (1)
-         f_ptr => sigmoid
-      case (2)
-         f_ptr => hyptan
-      case (3)
-         f_ptr => relu
-      case (4)
-         f_ptr => linear
-      case (5)
-         f_ptr => silu
-      case (6)
-         f_ptr => gelu
-      end select
-
-      ! hidden layers
-      do i = 1, net%nl - 2 ! excludes input and output
-
-         A_prev = Amat
-
-         ! transpose prior to forward pass
-         W = transpose(net%layer(i)%nnwts)
-         b = transpose(net%layer(i)%nnbias)
-
-         ! forward pass
-         b = spread(b(1, :), 1, size(A_prev, dim=1))
-         Zmat = matmul(A_prev, W) + b
-
-         ! BN prior to activation if required
-         if (norm) then
-            call normalize_input(Zmat, Znorm, net%layer(i)%sw(1), &
-                                 calc_mom=.true., gmma=net%layer(i)%gmma, &
-                                 beta=net%layer(i)%beta)
-         else
-            Znorm = Zmat
-         end if
-         Amat = f_ptr(Znorm)
-
+      do i = 1, net%ld(1)
+         Amat(:, i) = power(Ymat(:, i), net%omega(i))
       end do
-
-      ! output layer
-      WL = transpose(net%layer(net%nl - 1)%nnwts)
-      bL = transpose(net%layer(net%nl - 1)%nnbias)
-      bL = spread(bL(1, :), 1, size(Amat, dim=1))
-      ZL = matmul(Amat, WL) + bL
-
-      ! BN prior to activation if required
-      if (norm) then
-         call normalize_input(ZL, ZLnorm, nf=1, calc_mom=.true., &
-                              gmma=net%layer(net%nl - 1)%gmma, &
-                              beta=net%layer(net%nl - 1)%beta)
-         ZL = ZLnorm
-      end if
-
-      ! linear activation and reduce dims
+      ZL = matmul(Amat, transpose(net%awts))
       AL = ZL(:, 1)
 
-      ! normal score transform if required
+      ! random despike and normal score transform
       if (nstrans) then
-         ! random despike and transform
          do i = 1, ndata
             AL(i) = AL(i) + grnd()*SMALLDBLE
             call transform_to_refcdf(AL(i), ttable, AL(i), nsamp)
@@ -255,7 +317,7 @@ contains
       wt = 1.d0
 
       ! calculate the corresponding z values
-      call network_forward(net, yref, zref, nstrans=.false., norm=net%norm)
+      call network_forward(net, yref, zref, nstrans=.false.)
 
       ! normal score to build transform table
       do i = 1, nsamp
@@ -289,6 +351,31 @@ contains
 
    end subroutine transform_to_refcdf
 
+   ! subroutine vector_to_matrices(vector, net)
+
+   !    ! reshape trial vector (DE output) to neural network weight matrices
+   !    ! this subroutine updates the inupt type(network) object
+
+   !    type(network), intent(inout) :: net
+   !    real(8), intent(in) :: vector(:)
+   !    integer :: i
+
+   !    do i = 1, net%nl - 1
+
+   !       ! reshape weights and biases
+   !       net%layer(i)%nnwts = reshape(vector(net%iwts(i) + 1:net%iwts(i + 1)), &
+   !                                    shape=(net%layer(i)%sw), order=[2, 1])
+   !       net%layer(i)%nnbias = reshape(vector(net%ibias(i) + 1:net%ibias(i + 1)), &
+   !                                     shape=(net%layer(i)%sb), order=[2, 1])
+   !       if (net%norm) then
+   !          ! get the gamma and beta vectors
+   !          net%layer(i)%gmma = vector(net%igmma(i) + 1:net%igmma(i + 1))
+   !          net%layer(i)%beta = vector(net%ibeta(i) + 1:net%ibeta(i + 1))
+   !       end if
+   !    end do
+
+   ! end subroutine vector_to_matrices
+
    subroutine vector_to_matrices(vector, net)
 
       ! reshape trial vector (DE output) to neural network weight matrices
@@ -296,46 +383,51 @@ contains
 
       type(network), intent(inout) :: net
       real(8), intent(in) :: vector(:)
-      integer :: i
+      integer :: L
 
-      do i = 1, net%nl - 1
-
-         ! reshape weights and biases
-         net%layer(i)%nnwts = reshape(vector(net%iwts(i) + 1:net%iwts(i + 1)), &
-                                      shape=(net%layer(i)%sw), order=[2, 1])
-         net%layer(i)%nnbias = reshape(vector(net%ibias(i) + 1:net%ibias(i + 1)), &
-                                       shape=(net%layer(i)%sb), order=[2, 1])
-         if (net%norm) then
-            ! get the gamma and beta vectors
-            net%layer(i)%gmma = vector(net%igmma(i) + 1:net%igmma(i + 1))
-            net%layer(i)%beta = vector(net%ibeta(i) + 1:net%ibeta(i + 1))
-            ! net%layer(i)%gmma = 1.d0
-            ! net%layer(i)%beta = 0.d0
-         end if
-      end do
+      L = net%ld(1)
+      net%awts(1, :) = vector(1:L)
+      net%omega = vector(L + 1:2*L)
 
    end subroutine vector_to_matrices
+
+   ! subroutine calc_regularization(net, reg)
+
+   !    type(network), intent(inout) :: net
+   !    real(8), intent(out) :: reg
+   !    integer :: i
+
+   !    reg = 0.d0
+
+   !    do i = 1, net%nl - 1
+
+   !       if (net%ireg .eq. 0) then
+   !          reg = reg + 0.d0
+
+   !       else if (net%ireg .eq. 1) then ! L1
+   !          reg = reg + sum(abs(net%layer(i)%nnwts))*net%regconst
+
+   !       else if (net%ireg .eq. 2) then ! L2
+   !          reg = reg + sum(net%layer(i)%nnwts**2)*net%regconst
+   !       end if
+   !    end do
+
+   ! end subroutine calc_regularization
 
    subroutine calc_regularization(net, reg)
 
       type(network), intent(inout) :: net
       real(8), intent(out) :: reg
-      integer :: i
 
       reg = 0.d0
 
-      do i = 1, net%nl - 1
-
-         if (net%ireg .eq. 0) then
-            reg = reg + 0.d0
-
-         else if (net%ireg .eq. 1) then ! L1
-            reg = reg + sum(abs(net%layer(i)%nnwts))*net%regconst
-
-         else if (net%ireg .eq. 2) then ! L2
-            reg = reg + sum(net%layer(i)%nnwts**2)*net%regconst
-         end if
-      end do
+      if (net%ireg .eq. 0) then
+         reg = reg + 0.d0
+      else if (net%ireg .eq. 1) then ! L1
+         reg = reg + sum(abs(net%awts))*net%regconst
+      else if (net%ireg .eq. 2) then ! L2
+         reg = reg + sum(net%awts**2)*net%regconst
+      end if
 
    end subroutine calc_regularization
 
@@ -460,5 +552,18 @@ contains
       a = yval
 
    end function linear
+
+   function power(yval, w) result(a)
+
+      ! power activation function
+      real(8), intent(in) :: yval(:)
+      real(8), intent(in) :: w
+      real(8) :: a(size(yval))
+
+      a = yval
+      where (yval .gt. 0.d0) a = yval**w
+      where (yval .lt. 0.d0) a = abs(yval)**(1/w)*-(1.d0)
+
+   end function power
 
 end module network_mod
