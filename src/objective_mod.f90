@@ -206,7 +206,7 @@ contains
       call build_refcdf(nsamp, yref, nnet, ttable)
 
       ! the choice of the first realization here is arbitrary
-      call network_forward(nnet, ysimd(:, :, 1), AL, .true., nnet%norm, ttable)
+      call network_forward(nnet, ysimd(:, :, 1), AL, .true., ttable)
       call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
       ! initilaize a starting value for each component
@@ -247,7 +247,7 @@ contains
 
          ! evalute the random vector
          ! ireal = floor(grnd()*nreals + 1)
-         call network_forward(nnet, ysimd(:, :, 1), AL, .true., nnet%norm, ttable)
+         call network_forward(nnet, ysimd(:, :, 1), AL, .true., ttable)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
          if (vario .gt. 0) then
@@ -324,7 +324,7 @@ contains
 
       do ireal = 1, nreals
 
-         call network_forward(nnet, ysimd(:, :, ireal), AL, .true., nnet%norm, ttable)
+         call network_forward(nnet, ysimd(:, :, ireal), AL, .true., ttable)
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
          if (vario .gt. 0) call obj_vario(AL, sill, objt_vario)
@@ -376,7 +376,7 @@ contains
 
       do ireal = 1, nreals
 
-         call network_forward(net, simd(:, :, ireal), mix, .true., net%norm, ttable)
+         call network_forward(net, simd(:, :, ireal), mix, .true., ttable)
          call indicator_transform(mix, thresholds, ndata, ncut, imix)
 
          if (vario .gt. 0) call obj_vario(mix, sill, tobj_vario)
@@ -567,7 +567,7 @@ contains
             yp = yperm(idxs, i)
             yperm(:, i) = yp
 
-            call network_forward(net, yperm, AL, .true., net%norm, ttable)
+            call network_forward(net, yperm, AL, .true., ttable)
             call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
             if (vario .gt. 0) call obj_vario(AL, sill, objt_vario)
@@ -578,7 +578,7 @@ contains
             ep = objt_vario + objt_ivario + objt_runs + objt_npt
 
             ! get the original error
-            call network_forward(net, ysim(:, :, j), AL, .true., net%norm, ttable)
+            call network_forward(net, ysim(:, :, j), AL, .true., ttable)
             call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
             if (vario .gt. 0) call obj_vario(AL, sill, objt_vario)
