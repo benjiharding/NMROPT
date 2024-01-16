@@ -24,7 +24,7 @@ contains
 
          call cpu_time(start)
 
-         call de(nnet%dims, popsize, its, mut, cplo, cphi, bmin, bmax, best)
+         call de(nnet%dims, popsize, its, mut, cplo, cphi, min_b, max_b, best)
 
          call cpu_time(finish)
 
@@ -34,7 +34,7 @@ contains
 
          start = omp_get_wtime()
 
-         call pde(nnet%dims, popsize, its, mut, cplo, cphi, bmin, bmax, best)
+         call pde(nnet%dims, popsize, its, mut, cplo, cphi, min_b, max_b, best)
 
          finish = omp_get_wtime()
 
@@ -45,7 +45,7 @@ contains
 
    end subroutine optimize
 
-   subroutine de(dims, popsize, its, mut, cplo, cphi, bmin, bmax, best, ifunc)
+   subroutine de(dims, popsize, its, mut, cplo, cphi, min_b, max_b, best, ifunc)
 
       ! differential evolution
 
@@ -53,14 +53,14 @@ contains
 
       ! inputs
       integer, intent(in) :: dims, popsize, its
-      real(8), intent(in) :: mut, cplo, cphi, bmin, bmax
+      real(8), intent(in) :: mut, cplo, cphi, min_b(:, :), max_b(:, :)
       real(8), allocatable, intent(inout) :: best(:)
       integer, optional, intent(in) :: ifunc
 
       ! local variables
       integer :: i, j, k, best_idx, idxs(3), func, nochange
       real(8), allocatable :: pop(:, :), pop_denorm(:, :)
-      real(8), allocatable :: min_b(:, :), max_b(:, :), diff(:, :)
+      real(8), allocatable :: diff(:, :)
       real(8), allocatable :: mutant(:)
       real(8), allocatable :: trial(:), trial_denorm(:)
       real(8), allocatable :: fitness(:), fobj(:)
@@ -76,9 +76,6 @@ contains
       ! allocate the population and bounds
       allocate (best(dims))
       allocate (pop(dims, popsize))
-      allocate (min_b(dims, 1), max_b(dims, 1))
-      min_b = bmin
-      max_b = bmax
 
       ! allocate the trial vectors
       allocate (trial(dims))
@@ -199,7 +196,7 @@ contains
 
    end subroutine de
 
-   subroutine pde(dims, popsize, its, mut, cplo, cphi, bmin, bmax, best, ifunc)
+   subroutine pde(dims, popsize, its, mut, cplo, cphi, min_b, max_b, best, ifunc)
 
       ! parallel differential evolution
 
@@ -207,14 +204,14 @@ contains
 
       ! inputs
       integer, intent(in) :: dims, popsize, its
-      real(8), intent(in) :: mut, cplo, cphi, bmin, bmax
+      real(8), intent(in) :: mut, cplo, cphi, min_b(:, :), max_b(:, :)
       real(8), allocatable, intent(inout) :: best(:)
       integer, optional, intent(in) :: ifunc
 
       ! local variables
       integer :: i, j, k, best_idx, idxs(3), func, nochange
       real(8), allocatable :: pop(:, :), pop_denorm(:, :)
-      real(8), allocatable :: min_b(:, :), max_b(:, :), diff(:, :)
+      real(8), allocatable :: diff(:, :)
       real(8), allocatable :: mutant(:)
       real(8), allocatable :: trial(:)
       real(8), allocatable :: fitness(:), fobj(:)
@@ -240,9 +237,6 @@ contains
       allocate (best(dims))
       allocate (pop(dims, popsize))
       allocate (trials(dims, popsize), trials_denorm(dims, popsize))
-      allocate (min_b(dims, 1), max_b(dims, 1))
-      min_b = bmin
-      max_b = bmax
 
       ! allocate the trial vectors
       allocate (trial(dims))

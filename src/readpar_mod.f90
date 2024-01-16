@@ -25,11 +25,12 @@ contains
       character(256) :: poolfile
       character(256) :: runsfile
       character(256) :: npointfile
+      character(256) :: omegafile
       character(256) :: str
       logical :: testfl
-      integer :: test, i, j, k, ic, iv, tmp
+      integer :: test, i, j, k, ic, iv, tmp, L
       integer :: dhcol, xyzcols(3), varcol, wtcol, ncols
-      real(8) :: tmin, tmax
+      real(8) :: tmin, tmax, minmax(2)
       real(8), allocatable :: tmpvar(:), tmpnsvar(:)
 
       ! unit numbers
@@ -379,6 +380,36 @@ contains
       read (lin, *, iostat=test) bmin, bmax
       if (test .ne. 0) stop "ERROR in parameter file"
       write (*, *) 'DE lower and upper bounds: ', bmin, bmax
+      ! allocate bounds arrays
+      L = nnet%ld(1)
+      allocate (min_b(2*L, 1), max_b(2*L, 1), stat=test)
+      if (test .ne. 0) stop "allocation failed due to insufficient memory!"
+      min_b(1:L, 1) = bmin
+      max_b(1:L, 1) = bmax
+
+      ! read omega bounds
+      read (lin, '(a256)', iostat=test) omegafile
+      if (test .ne. 0) stop "ERROR in parameter file"
+      call chknam(omegafile, 256)
+      inquire (file=omegafile, exist=testfl)
+      if (.not. testfl) stop "ERROR - the data file does not exist"
+      ! load if the file is correct
+      open (ltrg, file=omegafile, status='OLD')
+      read (ltrg, *)
+      read (ltrg, *, iostat=test) ncols
+      if (test .ne. 0) stop "ERROR in data file"
+      if (ncols .ne. 2) stop "Number of columns in omega file must be 2!"
+      ! restart file
+      rewind (ltrg)
+      do i = 1, ncols + 2
+         read (ltrg, *, iostat=test)
+      end do
+      do i = 1, L
+         read (ltrg, *, iostat=test) minmax
+         min_b(L + i, 1) = minmax(1)
+         max_b(L + i, 1) = minmax(2)
+      end do
+      close (ltrg)
 
       ! parallel processing
       ipara = 0
