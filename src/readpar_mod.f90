@@ -404,11 +404,14 @@ contains
       do i = 1, ncols + 2
          read (ltrg, *, iostat=test)
       end do
-      do i = 1, L
+      do i = 1, L - 1
          read (ltrg, *, iostat=test) minmax
          min_b(L + i, 1) = minmax(1)
          max_b(L + i, 1) = minmax(2)
       end do
+      ! constrain nugget contribution to be linear
+      min_b(2*L, 1) = 1.d0
+      max_b(2*L, 1) = 1.d0
       close (ltrg)
 
       ! parallel processing

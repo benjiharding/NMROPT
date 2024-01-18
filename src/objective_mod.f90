@@ -179,7 +179,7 @@ contains
       ! tracking the how much each component changes
 
       integer, parameter :: MAXPERT = 1000
-      real(8), allocatable :: vect(:), vect_denorm(:), min_b(:), max_b(:), diff(:)
+      real(8), allocatable :: vect(:), vect_denorm(:), diff(:)
       real(8), allocatable :: trial(:), trial_denorm(:)
       real(8) :: objinit(5), objdelta(5)
       integer :: i, j, ireal
@@ -188,15 +188,12 @@ contains
       objdelta = 0.d0
 
       ! initial trial vector
-      allocate (vect(nnet%dims))
-      allocate (min_b(nnet%dims), max_b(nnet%dims), trial(nnet%dims))
-      min_b = bmin
-      max_b = bmax
-      diff = abs(min_b - max_b)
+      allocate (vect(nnet%dims), trial(nnet%dims))
+      diff = abs(min_b(:, 1) - max_b(:, 1))
       do i = 1, nnet%dims
          vect(i) = grnd()
       end do
-      vect_denorm = min_b + vect*diff
+      vect_denorm = min_b(:, 1) + vect*diff
 
       ! get matrices for this trial vector
       call vector_to_matrices(vect_denorm, nnet)
@@ -236,7 +233,7 @@ contains
          do j = 1, size(vect)
             trial(j) = grnd()
          end do
-         trial_denorm = min_b + trial*diff
+         trial_denorm = min_b(:, 1) + trial*diff
 
          ! get matrices for this trial vector
          call vector_to_matrices(trial_denorm, nnet)
