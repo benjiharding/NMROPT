@@ -267,8 +267,8 @@ contains
       ! parameters
       type(network), intent(inout) :: net ! neural network object
       real(8), intent(in) :: Ymat(:, :) ! simulated factors
-      real(8), optional :: ttable(:, :) ! transform table
       logical, intent(in) :: nstrans ! nscore transform flag
+      real(8), optional :: ttable(:, :) ! transform table
 
       ! return
       real(8), intent(inout) :: AL(:) ! output mixture vector
