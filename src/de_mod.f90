@@ -478,7 +478,6 @@ contains
 
       ! default behaviour
       if (ifunc .eq. 0) call obj_nmr(z, v)
-      ! if (ifunc .eq. 0) call obj_nmr_vect(z, v)
 
       ! unit testing
       if (ifunc .eq. 1) call ackley(z, v)
