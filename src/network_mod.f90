@@ -557,7 +557,7 @@ contains
 
       ! power activation function
       real(8), intent(in) :: yval(:)
-      real(8), intent(in) :: w
+      real(8), intent(in) :: w ! trainable exponent
       real(8) :: a(size(yval))
 
       a = yval
