@@ -36,13 +36,13 @@ contains
 
       ! get vario sills for standardization
 
-      sill = 1.d0
-      ! call calc_expsill(var, sill, vtype=1)
+      ! sill = 1.d0
+      call calc_expsill(var, sill, vtype=1)
 
       do i = 1, ncut
-         q = gcum(thresholds(i))
-         isills(i) = q*(1.d0 - q)
-         ! call calc_expsill(var, isills(i), vtype=2, cut=thresholds(i))
+         ! q = gcum(thresholds(i))
+         ! isills(i) = q*(1.d0 - q)
+         call calc_expsill(var, isills(i), vtype=2, cut=thresholds(i))
       end do
 
       ! get the start/end dh indices in the mixture array
