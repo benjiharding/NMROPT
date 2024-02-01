@@ -280,7 +280,7 @@ contains
       ! forward pass; assumes single layer network
       Amat = Ymat
       do i = 1, net%ld(1)
-         Amat(:, i) = power(Ymat(:, i), net%omega(i))
+         Amat(:, i) = power(Ymat(:, i), net%omega(i), 1.d0)
       end do
       ZL = matmul(Amat, transpose(net%awts))
       AL = ZL(:, 1)
@@ -553,16 +553,17 @@ contains
 
    end function linear
 
-   function power(yval, w) result(a)
+   function power(yval, w, f) result(a)
 
       ! power activation function
       real(8), intent(in) :: yval(:)
       real(8), intent(in) :: w ! trainable exponent
+      real(8), intent(in) :: f ! scale factor
       real(8) :: a(size(yval))
 
-      a = yval
-      where (yval .gt. 0.d0) a = yval**w
-      where (yval .lt. 0.d0) a = abs(yval)**(1/w)*-(1.d0)
+      a = yval/f
+      where (yval .gt. 0.d0) a = f*(a**w)
+      where (yval .lt. 0.d0) a = f*(abs(a)**(1/w)*-(1.d0))
 
    end function power
 
