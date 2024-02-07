@@ -352,7 +352,7 @@ contains
       integer :: imix(ndata, ncut)
       real(8) :: reg
       ! real(8) :: expsill, iexpsills(ncut)
-      integer :: ireal
+      integer :: ireal, i
 
       gobjt = 0.d0
       tobj_vario = 0.d0
@@ -375,6 +375,13 @@ contains
 
          call network_forward(net, simd(:, :, ireal), mix, .true., ttable)
          call indicator_transform(mix, thresholds, ndata, ncut, imix)
+
+         ! TEST STANDARDIZING BY REALIZATION
+         call calc_expsill(mix, sill, vtype=1)
+         do i = 1, ncut
+            call calc_expsill(var, isills(i), vtype=2, cut=thresholds(i))
+         end do
+         ! TEST STANDARDIZING BY REALIZATION
 
          if (vario .gt. 0) call obj_vario(mix, sill, tobj_vario)
          if (ivario .gt. 0) call obj_ivario(imix, isills, tobj_ivario, threshwt)
