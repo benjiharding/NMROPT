@@ -55,11 +55,6 @@ module geostat
    ! run parameters
    integer :: maxrun, nstep ! maximum runs and connected steps
 
-   ! optimization initialization
-   real(8), allocatable :: min_b(:, :), max_b(:, :)
-   real(8) :: bmin, bmax
-   real(8) :: userfac(4)
-
    ! boolean flags
    integer :: vario
    integer :: ivario
@@ -67,6 +62,10 @@ module geostat
    integer :: npoint
    integer :: runs_above
    integer :: conn_above
+
+   ! factor precedence
+   integer, allocatable :: fprec(:)
+   real(8), allocatable :: sigwt(:) ! sigmoid weighting factor
 
    ! output file
    integer :: idbg, lprs = 7 ! cant be 6
@@ -118,6 +117,11 @@ module geostat
    integer :: popsize, its
    real(8), allocatable :: best(:)
    integer :: num_threads, ipara
+
+   ! optimization initialization
+   real(8), allocatable :: min_b(:, :), max_b(:, :)
+   real(8) :: bmin, bmax
+   real(8) :: userfac(4)
 
    ! objective iterations output file
    integer :: lobj = 5
