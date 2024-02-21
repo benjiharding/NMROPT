@@ -29,7 +29,8 @@ contains
       call vector_to_matrices(best, nnet)
       call build_refcdf(nsamp, yref, nnet, ttable)
       do i = 1, nreals
-         call network_forward(nnet, ysimd(:, :, i), opt_AL(:, i), .true., ttable)
+         call network_forward(nnet, ysimd(:, :, i), opt_AL(:, i), .true., &
+                              fprec, sigwt, ttable)
          call indicator_transform(opt_AL(:, i), thresholds, ndata, ncut, &
                                   opt_AL_i(:, :, i))
          do j = 1, ndata
@@ -41,6 +42,16 @@ contains
       ! write out the optimized network weights
       do i = 1, size(best)
          write (lwts, "(*(g14.8,1x))") best(i)
+      end do
+
+      ! append factor precedence
+      do i = 1, nnet%ld(1)
+         write (lwts, "(*(g14.8,1x))") fprec(i)
+      end do
+
+      ! append sigmoid weighting
+      do i = 1, nnet%ld(1)
+         write (lwts, "(*(g14.8,1x))") sigwt(i)
       end do
 
       ! calculate and write out feature importance
