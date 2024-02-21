@@ -30,7 +30,7 @@ contains
       logical :: testfl
       integer :: test, i, j, k, ic, iv, tmp, L
       integer :: dhcol, xyzcols(3), varcol, wtcol, ncols
-      real(8) :: tmin, tmax, minmax(2)
+      real(8) :: tmin, tmax, minmax(4)
       real(8), allocatable :: tmpvar(:), tmpnsvar(:)
 
       ! unit numbers
@@ -384,8 +384,11 @@ contains
       L = nnet%ld(1)
       allocate (min_b(2*L, 1), max_b(2*L, 1), stat=test)
       if (test .ne. 0) stop "allocation failed due to insufficient memory!"
-      min_b(1:L, 1) = bmin
-      max_b(1:L, 1) = bmax
+      min_b(1:L - 1, 1) = bmin
+      max_b(1:L - 1, 1) = bmax
+      ! constrain nugget lower/upper limit
+      min_b(L, 1) = 0.d0
+      max_b(L, 1) = 0.25d0
 
       ! read omega bounds
       read (lin, '(a256)', iostat=test) omegafile
@@ -398,7 +401,8 @@ contains
       read (ltrg, *)
       read (ltrg, *, iostat=test) ncols
       if (test .ne. 0) stop "ERROR in data file"
-      if (ncols .ne. 2) stop "Number of columns in omega file must be 2!"
+      if (ncols .ne. 4) stop "Number of columns in omega file must be 2!"
+      allocate (fprec(L), sigwt(L)) ! factor precedence
       ! restart file
       rewind (ltrg)
       do i = 1, ncols + 2
@@ -408,10 +412,15 @@ contains
          read (ltrg, *, iostat=test) minmax
          min_b(L + i, 1) = minmax(1)
          max_b(L + i, 1) = minmax(2)
+         fprec(i) = minmax(3)
+         sigwt(i) = minmax(4)
       end do
       ! constrain nugget contribution to be linear
       min_b(2*L, 1) = 1.d0
       max_b(2*L, 1) = 1.d0
+      ! nugget precedence always last
+      fprec(L) = L
+      sigwt(L) = 1.d0
       close (ltrg)
 
       ! parallel processing
