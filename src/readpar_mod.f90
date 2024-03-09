@@ -245,6 +245,13 @@ contains
       write (*, "(2a)") '  file with Gaussian pool cov. struct.: ', &
          trim(adjustl(poolfile))
 
+      ! precedence flag
+      read (lin, *, iostat=test) tmp
+      if (test .ne. 0) stop "ERROR in parameter file"
+      ifp = .false.
+      if (tmp .gt. 0) ifp = .true.
+      write (*, *) "consider factor precedence?", ifp
+
       ! objective components
       read (lin, *, iostat=test) vario, ivario, runs, npoint
       if (test .ne. 0) stop "ERROR in parameter file"

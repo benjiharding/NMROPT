@@ -29,8 +29,12 @@ contains
       call vector_to_matrices(best, nnet)
       call build_refcdf(nsamp, yref, nnet, ttable)
       do i = 1, nreals
-         call network_forward(nnet, ysimd(:, :, i), opt_AL(:, i), .true., &
-                              fprec, sigwt, ttable)
+         if (ifp) then
+            call network_forward2(nnet, ysimd(:, :, i), opt_AL(:, i), .true., &
+                                  fprec, sigwt, ttable)
+         else
+            call network_forward(nnet, ysimd(:, :, i), opt_AL(:, i), .true., ttable)
+         end if
          call indicator_transform(opt_AL(:, i), thresholds, ndata, ncut, &
                                   opt_AL_i(:, :, i))
          do j = 1, ndata

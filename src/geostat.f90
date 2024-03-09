@@ -66,6 +66,7 @@ module geostat
    ! factor precedence
    integer, allocatable :: fprec(:)
    real(8), allocatable :: sigwt(:) ! sigmoid weighting factor
+   logical :: ifp ! flag to consider precedence
 
    ! output file
    integer :: idbg, lprs = 7 ! cant be 6
