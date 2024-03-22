@@ -29,6 +29,7 @@
 # Executables
 *.exe
 *.app
+*.7z
 
 # random
 *.out
