@@ -284,6 +284,7 @@ contains
          end if
 
          ! crossover prob b/w cpho and cphi
+         ! crossp = grnd()*(cphi - cplo) + cplo
          crossp = cphi + (cplo - cphi)*(1 - dble(i)/dble(its))**4
 
          !
