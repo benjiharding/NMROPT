@@ -1,6 +1,7 @@
 module objective_mod
 
    use geostat
+   use types_mod
    use sequences_mod, only: binary_runs, npoint_connect
    use vario_mod, only: update_vario, vario_mse, indicator_transform, &
                         vario_pairs, varmodelpts, set_sill, calc_expsill
@@ -63,7 +64,7 @@ contains
          lagt = tmppairs(:, 3)
 
          ! check for valid lag indices (defined lag bins)
-         valid_idxs = pack([(ii, ii=1, expvar(i)%nlags + 1)], tmpbins(:) .lt. HUGE(tmpbins))
+         valid_idxs = pack([(ii, ii=1, expvar(i)%nlags + 1)], tmpbins(:) .gt. -999.0)
          nl = size(valid_idxs)
 
          if (size(valid_idxs, dim=1) .lt. 1) stop "No defined experimental lags"
@@ -92,7 +93,6 @@ contains
                heads%dirs(i)%lags(j)%idxs(k) = headt(sub_idxs(k))
                tails%dirs(i)%lags(j)%idxs(k) = tailt(sub_idxs(k))
             end do
-
          end do
       end do
 
@@ -248,12 +248,12 @@ contains
          call build_refcdf(nsamp, yref, nnet, ttable)
 
          ! evalute the random vector
-         ireal = floor(grnd()*nreals + 1)
+         ! ireal = floor(grnd()*nreals + 1)
          if (ifp) then
-            call network_forward2(nnet, ysimd(:, :, ireal), AL, .true., fprec, &
+            call network_forward2(nnet, ysimd(:, :, 1), AL, .true., fprec, &
                                   sigwt, ttable)
          else
-            call network_forward(nnet, ysimd(:, :, ireal), AL, .true., ttable)
+            call network_forward(nnet, ysimd(:, :, 1), AL, .true., ttable)
          end if
          call indicator_transform(AL, thresholds, ndata, ncut, AL_i)
 
