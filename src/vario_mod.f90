@@ -141,7 +141,7 @@ contains
       ! Weighted MSE between experimental points and variogram model
 
       ! parameters
-      real(8), intent(in) :: expvario(:)
+      real(8), intent(inout) :: expvario(:)
       real(8), intent(in) :: varmodelvals(:), varlagdist(:)
       real(8), intent(in) :: idpow
 
@@ -160,6 +160,7 @@ contains
       idwts = inv_dist(varlagdist, idpow, nlags)
 
       ! get the weighted MSE
+      where (varmodelvals .ge. 1.d0) expvario = 1.d0
       do i = 1, nlags
          mse = mse + idwts(i)*(varmodelvals(i) - expvario(i))**2
       end do
@@ -414,7 +415,7 @@ contains
       np = size(pairs, dim=1)
 
       ! get average distance in each lag bin
-      lagbins = HUGE(h)
+      lagbins = -999.0 !HUGE(h)
       do n = 1, nlags + 1
          h = 0.d0
          k = 0
@@ -424,7 +425,7 @@ contains
                k = k + 1
             end if
          end do
-         lagbins(n) = h/k
+         if (k .gt. 0) lagbins(n) = h/real(k)
       end do
 
    end subroutine vario_pairs
