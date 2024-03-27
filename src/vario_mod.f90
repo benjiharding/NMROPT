@@ -74,22 +74,17 @@ contains
       do i = 1, nl
          expv = 0.d0
          np = size(head%lags(i)%idxs)
-         expv = sum((zval(tail%lags(i)%idxs) - zval(head%lags(i)%idxs))**2)
-         expvario(i) = expv/dble(np)
+         if (np .gt. 1) then
+            expv = sum((zval(tail%lags(i)%idxs) - zval(head%lags(i)%idxs))**2)
+            expvario(i) = expv/dble(np)*0.5
+         end if
       end do
 
-      expvario = 0.5d0*expvario
-
-      ! reset values above sill to the sill
-      ! do i = 1, nl
-      !    if (expvario(i) .gt. sill) then
-      !       expvario(i) = sill
-      !    end if
-      ! end do
+      ! expvario = 0.5d0*expvario
 
       ! standardize the sill?
       if (isill .gt. 0) then
-         expvario = expvario/sill
+         where (expvario .gt. -999.0) expvario = expvario/sill
       end if
 
    end subroutine update_vario
@@ -160,8 +155,9 @@ contains
       idwts = inv_dist(varlagdist, idpow, nlags)
 
       ! get the weighted MSE
-      where (varmodelvals .ge. 1.d0) expvario = 1.d0
+      ! where (varmodelvals .ge. 1.d0) expvario = 1.d0
       do i = 1, nlags
+         if (varlagdist(i) .lt. -998.0) cycle
          mse = mse + idwts(i)*(varmodelvals(i) - expvario(i))**2
       end do
 
@@ -230,6 +226,10 @@ contains
 
       ! Calculate variogram values
       do ivarg = 1, nvargs
+         if (varlagdist(ivarg) .lt. -998.0) then
+            varmodelvals(ivarg) = -999.0
+            cycle
+         end if
          x = real(sin(DEG2RAD*varazm(ivarg))*cos(DEG2RAD*vardip(ivarg))*varlagdist(ivarg))
          y = real(cos(DEG2RAD*varazm(ivarg))*cos(DEG2RAD*vardip(ivarg))*varlagdist(ivarg))
          z = real(sin(DEG2RAD*vardip(ivarg))*varlagdist(ivarg))

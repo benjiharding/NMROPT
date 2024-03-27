@@ -23,6 +23,8 @@ module types_mod
       real(8) :: tilt
       real(8) :: lagdis, lagtol
       integer :: nlags
+      integer, allocatable :: npairs(:)
+      integer, allocatable :: vidxs(:) ! valid lags
    end type experimental
 
    ! neural network parameters

@@ -65,9 +65,10 @@ contains
 
          ! check for valid lag indices (defined lag bins)
          valid_idxs = pack([(ii, ii=1, expvar(i)%nlags + 1)], tmpbins(:) .gt. -999.0)
-         nl = size(valid_idxs)
+         ! nl = size(valid_idxs)
+         nl = expvar(i)%nlags + 1
 
-         if (size(valid_idxs, dim=1) .lt. 1) stop "No defined experimental lags"
+         ! if (size(valid_idxs, dim=1) .lt. 1) stop "No defined experimental lags"
 
          ! only allocate the number of defined lags
          allocate (varazm%dirs(i)%vlags(nl))
@@ -75,24 +76,34 @@ contains
          allocate (varlagdist%dirs(i)%vlags(nl))
          allocate (heads%dirs(i)%lags(nl))
          allocate (tails%dirs(i)%lags(nl))
+         allocate (expvar(i)%npairs(nl), expvar(i)%vidxs(size(valid_idxs)))
+         expvar(i)%vidxs = valid_idxs
 
          do j = 1, nl
 
             ! experiemntal parameters
             varazm%dirs(i)%vlags(j) = expvar(i)%azm
             vardip%dirs(i)%vlags(j) = expvar(i)%dip
-            varlagdist%dirs(i)%vlags(j) = tmpbins(valid_idxs(j))
+            ! varlagdist%dirs(i)%vlags(j) = tmpbins(valid_idxs(j))
+            varlagdist%dirs(i)%vlags(j) = tmpbins(j)
 
             ! lag indices
-            lag_idxs = pack([(k, k=1, size(tmppairs, dim=1))], &
-                            tmppairs(:, 3) .eq. valid_idxs(j))
-            call get_subsample(lag_idxs, max_pairs, sub_idxs)
-            allocate (heads%dirs(i)%lags(j)%idxs(size(sub_idxs)))
-            allocate (tails%dirs(i)%lags(j)%idxs(size(sub_idxs)))
-            do k = 1, size(sub_idxs)
-               heads%dirs(i)%lags(j)%idxs(k) = headt(sub_idxs(k))
-               tails%dirs(i)%lags(j)%idxs(k) = tailt(sub_idxs(k))
-            end do
+            if (any(valid_idxs .eq. j)) then
+               lag_idxs = pack([(k, k=1, size(tmppairs, dim=1))], &
+                               tmppairs(:, 3) .eq. j)
+               call get_subsample(lag_idxs, max_pairs, sub_idxs)
+               allocate (heads%dirs(i)%lags(j)%idxs(size(sub_idxs)))
+               allocate (tails%dirs(i)%lags(j)%idxs(size(sub_idxs)))
+               do k = 1, size(sub_idxs)
+                  heads%dirs(i)%lags(j)%idxs(k) = headt(sub_idxs(k))
+                  tails%dirs(i)%lags(j)%idxs(k) = tailt(sub_idxs(k))
+               end do
+               expvar(i)%npairs(j) = size(headt(sub_idxs), dim=1)
+            else
+               expvar(i)%npairs(j) = 0
+               allocate (heads%dirs(i)%lags(j)%idxs(1))
+               allocate (tails%dirs(i)%lags(j)%idxs(1))
+            end if
          end do
       end do
 
