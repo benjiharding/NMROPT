@@ -21,7 +21,7 @@ contains
       real(8), allocatable :: expvario(:), expnpoint(:), fimp(:)
       integer, allocatable :: expruns(:)
       integer :: cumruns(maxrun)
-      integer :: i, ic, j, k, hidx, tidx
+      integer :: i, ic, j, jj, k, kk, hidx, tidx
 
       allocate (opt_AL(ndata, nreals), opt_AL_i(ndata, ncut, nreals))
 
@@ -95,9 +95,10 @@ contains
 
             do j = 1, ndir
                call update_vario(heads%dirs(j), tails%dirs(j), opt_AL(:, i), expvario, sill)
-               do k = 1, size(heads%dirs(j)%lags)
+               ! do k = 1, size(heads%dirs(j)%lags)
+               do k = 1, expvar(j)%nlags + 1
                   write (ltrg, "(*(g14.8,1x))") i, j, varlagdist%dirs(j)%vlags(k), &
-                     size(heads%dirs(j)%lags(k)%idxs), expvario(k), target_vario%dirs(j)%vlags(k), &
+                     expvar(j)%npairs(k), expvario(k), target_vario%dirs(j)%vlags(k), &
                      varazm%dirs(j)%vlags(k), vardip%dirs(j)%vlags(k)
                end do
             end do
@@ -130,11 +131,10 @@ contains
                do j = 1, ndir
                   call update_vario(heads%dirs(j), tails%dirs(j), dble(opt_AL_i(:, ic, i)), &
                                     expvario, isills(ic))
-                  do k = 1, size(heads%dirs(j)%lags)
+                  do k = 1, expvar(j)%nlags + 1
                      write (ltrg, "(*(g14.8,1x))") i, ic, j, varlagdist%dirs(j)%vlags(k), &
-                        size(heads%dirs(j)%lags(k)%idxs), expvario(k), &
-                        target_ivario%cuts(ic)%dirs(j)%vlags(k), varazm%dirs(j)%vlags(k), &
-                        vardip%dirs(j)%vlags(k)
+                        expvar(j)%npairs(k), expvario(k), target_ivario%cuts(ic)%dirs(j)%vlags(k), &
+                        varazm%dirs(j)%vlags(k), vardip%dirs(j)%vlags(k)
                   end do
                end do
             end do
@@ -209,8 +209,11 @@ contains
          write (lprs, "(A)") "Head y"
          write (lprs, "(A)") "Head z"
          do i = 1, ndir
-            do j = 1, size(heads%dirs(i)%lags)
-               do k = 1, size(heads%dirs(i)%lags(j)%idxs)
+            jj = size(heads%dirs(i)%lags)
+            do j = 1, jj
+               kk = size(heads%dirs(i)%lags(j)%idxs)
+               if (kk .le. 1) cycle
+               do k = 1, kk
                   tidx = tails%dirs(i)%lags(j)%idxs(k)
                   hidx = heads%dirs(i)%lags(j)%idxs(k)
                   write (lprs, "(*(g14.8,1x))") tidx, hidx, j, i, xyz(1, tidx), xyz(2, tidx), &
