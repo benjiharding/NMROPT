@@ -219,10 +219,10 @@ contains
       if (test .ne. 0) stop "ERROR in parameter file"
       write (*, "(a,10(i0,x))") '  network layer dimensions: ', nnet%ld
 
-      ! activation function
-      read (lin, *, iostat=test) nnet%af
-      if (test .ne. 0) stop "ERROR in parameter file"
-      write (*, "(a,10(i0,x))") '  activation function: ', nnet%af
+      ! ! activation function
+      ! read (lin, *, iostat=test) nnet%af
+      ! if (test .ne. 0) stop "ERROR in parameter file"
+      ! write (*, "(a,10(i0,x))") '  activation function: ', nnet%af
 
       ! regularization
       read (lin, *, iostat=test) nnet%ireg, nnet%regconst
