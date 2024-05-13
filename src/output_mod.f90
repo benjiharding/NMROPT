@@ -89,9 +89,9 @@ contains
          write (ltrg, "(A)") "Dip"
          do i = 1, nreals
 
-            ! TEST STANDARDIZING BY REALIZATION
-            call calc_expsill(opt_AL(:, i), sill, vtype=1)
-            ! TEST STANDARDIZING BY REALIZATION
+            ! ! TEST STANDARDIZING BY REALIZATION
+            ! call calc_expsill(opt_AL(:, i), sill, vtype=1)
+            ! ! TEST STANDARDIZING BY REALIZATION
 
             do j = 1, ndir
                call update_vario(heads%dirs(j), tails%dirs(j), opt_AL(:, i), expvario, sill)
@@ -124,9 +124,9 @@ contains
          do i = 1, nreals
             do ic = 1, ncut
 
-               ! TEST STANDARDIZING BY REALIZATION
-               call calc_expsill(opt_AL(:, i), isills(ic), vtype=2, cut=thresholds(ic))
-               ! TEST STANDARDIZING BY REALIZATION
+               ! ! TEST STANDARDIZING BY REALIZATION
+               ! call calc_expsill(opt_AL(:, i), isills(ic), vtype=2, cut=thresholds(ic))
+               ! ! TEST STANDARDIZING BY REALIZATION
 
                do j = 1, ndir
                   call update_vario(heads%dirs(j), tails%dirs(j), dble(opt_AL_i(:, ic, i)), &

@@ -405,12 +405,12 @@ contains
          end if
          call indicator_transform(mix, thresholds, ndata, ncut, imix)
 
-         ! TEST STANDARDIZING BY REALIZATION
-         call calc_expsill(mix, sill, vtype=1)
-         do i = 1, ncut
-            call calc_expsill(var, isills(i), vtype=2, cut=thresholds(i))
-         end do
-         ! TEST STANDARDIZING BY REALIZATION
+         ! ! TEST STANDARDIZING BY REALIZATION
+         ! call calc_expsill(mix, sill, vtype=1)
+         ! do i = 1, ncut
+         !    call calc_expsill(var, isills(i), vtype=2, cut=thresholds(i))
+         ! end do
+         ! ! TEST STANDARDIZING BY REALIZATION
 
          if (vario .gt. 0) call obj_vario(mix, sill, tobj_vario)
          if (ivario .gt. 0) call obj_ivario(imix, isills, tobj_ivario, threshwt)
