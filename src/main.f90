@@ -9,7 +9,7 @@ program main
    ! objectives.
    !
    ! Author: Ben Harding
-   ! Date: May 2023
+   ! Date: May 2024
    ! Location: Centre for Computational Geostatistics,
    ! University of Alberta, Edmonton, Canada
    ! Contact: bharding@ualberta.ca
