@@ -28,7 +28,6 @@ contains
       write (99, "(A)") '3                                 - number of network layers (input to output layer)'
       write (99, "(A)") '5 5 1                             - network layer dimensions (input + nugget to output layer)'
       write (99, "(A)") '1 0.1                             - network wt regularization (0=none, 1=L1, 2=L2), lambda'
-      write (99, "(A)") '0                                 - normalize layer inputs? (0=no, 1=yes)'
       write (99, "(A)") 'pool.dat                          - file with covariance structs. of Gaussian pool'
       write (99, "(A)") '0                                 - consider factor precedence? (0=no, 1=yes)'
       write (99, "(A)") '1  1  1  1                        - objective components: varg, ivarg, runs, npoint'

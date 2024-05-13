@@ -224,10 +224,10 @@ contains
       ! if (test .ne. 0) stop "ERROR in parameter file"
       ! write (*, "(a,10(i0,x))") '  activation function: ', nnet%af
 
-      ! regularization
-      read (lin, *, iostat=test) nnet%ireg, nnet%regconst
-      if (test .ne. 0) stop "ERROR in parameter file"
-      write (*, *) '  regularization and constant: ', nnet%ireg, nnet%regconst
+      ! ! regularization
+      ! read (lin, *, iostat=test) nnet%ireg, nnet%regconst
+      ! if (test .ne. 0) stop "ERROR in parameter file"
+      ! write (*, *) '  regularization and constant: ', nnet%ireg, nnet%regconst
 
       ! batch normalization
       nnet%norm = .false.
